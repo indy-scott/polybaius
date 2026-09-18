@@ -183,6 +183,21 @@ function resetGame(){
   spawnT=2.2;patchT=9;slowT=0;slowFactor=1;rapidT=0;shield=false;gameOver=false;nextStreak=15;genWorld();
 }
 
+// ================= high scores (localStorage, arcade style: D3/D12) =================
+let hs=[]; try{ hs=JSON.parse(localStorage.getItem("polybaius.hiscores")||"[]"); }catch(e){ hs=[]; }
+let overPhase="", entryBuf="";
+function qualifies(s){ return s>0 && (hs.length<10 || s>hs[hs.length-1].s); }
+function saveScore(initials){
+  hs.push({i:initials, s:score, l:level});
+  hs.sort((a,b)=>b.s-a.s); hs=hs.slice(0,10);
+  try{ localStorage.setItem("polybaius.hiscores", JSON.stringify(hs)); }catch(e){}
+}
+function beginGameOver(){
+  gameOver=true;
+  overPhase = qualifies(score) ? "entry" : "table";
+  entryBuf="";
+}
+
 // ================= WebAudio =================
 let AC=null,muted=false;
 function audio(){ if(!AC) AC=new (window.AudioContext||window.webkitAudioContext)(); return AC; }
@@ -204,7 +219,14 @@ const sfx={
   bombAward:()=>beep(500,1000,.15,"triangle",.08),
   patch:()=>{beep(600,1200,.1,"triangle",.08); setTimeout(()=>beep(900,1500,.1,"triangle",.07),90);},
 };
-addEventListener("keydown",e=>{ if(e.code==="KeyM") muted=!muted; });
+addEventListener("keydown",e=>{
+  if(e.code==="KeyM") muted=!muted;
+  if(gameOver && overPhase==="entry"){
+    if(/^[a-zA-Z0-9]$/.test(e.key) && entryBuf.length<3){ entryBuf+=e.key.toUpperCase(); }
+    else if(e.code==="Backspace"){ entryBuf=entryBuf.slice(0,-1); }
+    else if(e.code==="Enter" && entryBuf.length>0){ saveScore(entryBuf); overPhase="table"; }
+  } else if(gameOver && overPhase==="table" && (e.code==="Enter"||e.code==="Space")){ resetGame(); }
+});
 
 // ================= drawing =================
 function drawBug(x,y,s,type,t,col){
@@ -267,7 +289,7 @@ cv.addEventListener("mousemove",e=>{
   mouse.y=(e.clientY-r.top)*(H/r.height);
 });
 cv.addEventListener("mousedown",e=>{
-  if(gameOver){ resetGame(); return; }
+  if(gameOver){ if(overPhase==="table") resetGame(); return; }
   if(e.button===0){
     const dx=mouse.x-cannonScreen.x, dy=mouse.y-(cannonScreen.y-24), m=Math.hypot(dx,dy)||1;
     const angles= rapidT>0 ? [-.12,0,.12] : [0];
@@ -309,7 +331,7 @@ function loop(now){
     if(b.t>=1){ b.dead=true;
       if(shield){ shield=false; boom(b.x,b.y,PAL.text,10); }
       else { lives--; flash=1; resetChain(); sfx.breach(); boom(cannonScreen.x,cannonScreen.y-24,"#ff2244");
-             if(lives<=0) gameOver=true; }
+             if(lives<=0) beginGameOver(); }
     }});
   bugs=bugs.filter(b=>!b.dead);
   patches.forEach(p=>{ p.t+=dt*.055*p.type.drift;
@@ -449,8 +471,33 @@ function loop(now){
   ctx.shadowBlur=0;
   if(bombFx>0){ctx.globalAlpha=bombFx*.35;ctx.fillStyle=PAL.pad;ctx.fillRect(0,0,W,H);ctx.globalAlpha=1;}
   if(flash>0){ctx.globalAlpha=flash*.3;ctx.fillStyle="#ff2244";ctx.fillRect(0,0,W,H);ctx.globalAlpha=1;}
-  if(gameOver){ctx.fillStyle=PAL.text;ctx.font="22px monospace";
-    ctx.fillText("ZOD BREACHED — click to restart",CX-190,H/2);}
+  if(gameOver){
+    ctx.fillStyle="rgba(0,4,10,.78)"; ctx.fillRect(0,0,W,H);
+    ctx.textAlign="center";
+    ctx.fillStyle=PAL.text; ctx.font="20px monospace";
+    ctx.fillText("ZOD BREACHED",CX,H*.28);
+    if(overPhase==="entry"){
+      ctx.font="13px monospace";
+      ctx.fillText("NEW HIGH SCORE — "+score+" — TYPE INITIALS, THEN ENTER",CX,H*.36);
+      ctx.font="34px monospace";
+      const shown=(entryBuf+"..").slice(0,3);
+      ctx.fillText(shown.split("").join(" "),CX,H*.47);
+      ctx.font="10px monospace"; ctx.fillStyle=PAL.web;
+      ctx.fillText("A-Z 0-9 · BACKSPACE · ENTER TO SAVE",CX,H*.55);
+    } else {
+      ctx.font="13px monospace";
+      ctx.fillText("FINAL SCORE "+score+" · LEVEL "+level,CX,H*.35);
+      ctx.font="11px monospace";
+      ctx.fillText("— HIGH SCORES —",CX,H*.42);
+      hs.forEach((r,i)=>{
+        ctx.fillStyle= r.s===score ? PAL.pad : PAL.text;
+        ctx.fillText(`${String(i+1).padStart(2," ")}  ${r.i.padEnd(3,".")}  ${String(r.s).padStart(7," ")}  L${String(r.l).padStart(2," ")}`,CX-90,H*.46+i*18);
+      });
+      ctx.fillStyle=PAL.web; ctx.font="10px monospace";
+      ctx.fillText("CLICK OR ENTER TO RESTART",CX,H*.46+hs.length*18+14);
+    }
+    ctx.textAlign="left";
+  }
 
   const fx=[slowT>0?`SLOW ${Math.round((1-slowFactor)*100)}% ${slowT.toFixed(0)}s`:null,
             rapidT>0?"RAPID "+rapidT.toFixed(0)+"s":null, shield?"SHIELD":""].filter(Boolean).join(" ");
