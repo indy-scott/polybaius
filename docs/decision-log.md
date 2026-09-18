@@ -137,6 +137,32 @@ warp; random shapes after level 99. Adaptation: bomb is ammo-based (start 3,
 milestone awards) instead of Tempest's per-level Superzapper recharge. Each
 level also reconfigures the corridor towers (see D2).
 
+## D8. Enemy visual design — DECIDED
+
+**Neon wireframe bugs with color-filled body sections and a dark underlay
+halo.** Each bug draws twice: a near-black silhouette pass underneath (creates
+contrast against bright tower faces and traces), then the neon pass with
+filled bodies/cores — rootkit chevrons filled, voltworm membrane translucent
+fill + solid core, tanglebug solid white core, hive translucent rhombus fill.
+Line width increased over the pure-wireframe draft.
+
+## D18. Hosting & exposure — DECIDED (local hosting via Cloudflare)
+
+PolybAIus will be hosted **locally on the homelab and exposed via Cloudflare,
+mirroring the resume site pattern**:
+
+- Static site — no backend; the whole game (HTML/JS) served by a
+  `caddy:2-alpine` container.
+- Deployed as a **Dockhand Docker Compose stack** on **docker-staging first,
+  docker-prod for release**, per the homelab-docker-stacks skill (Hawser
+  volume path + PROJECT.md tracking manifest).
+- Public exposure via the existing **Cloudflare tunnel** hostnames on the
+  services domain — proposed `polybaius.endofline.io` (same mechanism as
+  scotthepburn.com). Cloudflare API/DNS changes are made from docker-prod
+  egress only (token restriction).
+- No TLS cert management needed at the app layer (tunnel terminates TLS);
+  Caddy serves plain HTTP inside the tunnel.
+
 ## D7. Repository / tooling — DECIDED
 
 Plain static site, no bundler, no framework. Git + Forgejo remote optional

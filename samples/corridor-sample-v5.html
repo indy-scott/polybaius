@@ -231,25 +231,45 @@ addEventListener("keydown",e=>{
 // ================= drawing =================
 function drawBug(x,y,s,type,t,col){
   ctx.save();ctx.translate(x,y);ctx.scale(s,s);
-  ctx.strokeStyle=col;ctx.fillStyle=col;ctx.lineWidth=1.4/s;ctx.shadowColor=col;ctx.shadowBlur=9/s;
-  ctx.beginPath();
-  for(let i=0;i<6;i++){const side=i<3?-1:1,k=i%3,bx=(k-1)*6,by=side*3;
-    ctx.moveTo(bx,by);ctx.lineTo(bx+Math.sin(t*9+i*2)*2,by+side*(4+k));
-    ctx.lineTo(bx+Math.sin(t*9+i*2)*2+Math.sin(t*9+i)*3,by+side*(8+k));}
-  ctx.stroke();
-  if(type==="rootkit"){const f=Math.sin(t*6)*3;
-    ctx.beginPath();ctx.moveTo(-9,-2+f);ctx.lineTo(0,3);ctx.lineTo(-9,8+f);
-    ctx.moveTo(9,-2-f);ctx.lineTo(0,3);ctx.lineTo(9,8-f);ctx.stroke();}
-  else if(type==="voltworm"){ctx.beginPath();
-    for(let a=0;a<=Math.PI*2;a+=.3){const r=5+Math.sin(a*3+t*7)*2;
-      a===0?ctx.moveTo(Math.cos(a)*r,Math.sin(a)*r*.8):ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r*.8);}
-    ctx.stroke();ctx.beginPath();ctx.arc(0,0,1.6,0,7);ctx.fill();}
-  else if(type==="tanglebug"){ctx.beginPath();ctx.arc(0,0,3.2,0,7);ctx.fill();
-    for(let i=0;i<7;i++){const a=i/7*Math.PI*2;ctx.beginPath();ctx.moveTo(Math.cos(a)*3,Math.sin(a)*3);
-      ctx.lineTo(Math.cos(a)*(7+Math.sin(t*9+i)*2),Math.sin(a)*(7+Math.sin(t*9+i)*2));ctx.stroke();}}
-  else{ctx.beginPath();ctx.moveTo(0,-7);ctx.lineTo(6,0);ctx.lineTo(0,7);ctx.lineTo(-6,0);ctx.closePath();ctx.stroke();
-    ctx.beginPath();ctx.moveTo(-3,0);ctx.lineTo(0,-3);ctx.lineTo(3,0);ctx.lineTo(0,3);ctx.closePath();ctx.stroke();}
-  ctx.beginPath();ctx.moveTo(-2,-4);ctx.lineTo(-4+Math.sin(t*9),-9);ctx.moveTo(2,-4);ctx.lineTo(4+Math.sin(t*9+2),-9);ctx.stroke();
+  const paint=(c,fill,lw,blur)=>{
+    ctx.strokeStyle=c; ctx.fillStyle=c; ctx.lineWidth=lw;
+    ctx.shadowColor=c; ctx.shadowBlur=blur;
+    // legs
+    ctx.beginPath();
+    for(let i=0;i<6;i++){const side=i<3?-1:1,k=i%3,bx=(k-1)*6,by=side*3;
+      ctx.moveTo(bx,by);ctx.lineTo(bx+Math.sin(t*9+i*2)*2,by+side*(4+k));
+      ctx.lineTo(bx+Math.sin(t*9+i*2)*2+Math.sin(t*9+i)*3,by+side*(8+k));}
+    ctx.stroke();
+    if(type==="rootkit"){const f=Math.sin(t*6)*3;
+      ctx.beginPath();
+      ctx.moveTo(-9,-2+f);ctx.lineTo(0,3);ctx.lineTo(-9,8+f);ctx.closePath();
+      ctx.moveTo(9,-2-f);ctx.lineTo(0,3);ctx.lineTo(9,8-f);ctx.closePath();
+      if(fill){ctx.globalAlpha=.85;ctx.fill();ctx.globalAlpha=1;}
+      ctx.stroke();}
+    else if(type==="voltworm"){ctx.beginPath();
+      for(let a=0;a<=Math.PI*2;a+=.3){const r=5+Math.sin(a*3+t*7)*2;
+        a===0?ctx.moveTo(Math.cos(a)*r,Math.sin(a)*r*.8):ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r*.8);}
+      ctx.closePath();
+      if(fill){ctx.globalAlpha=.45;ctx.fill();ctx.globalAlpha=1;}
+      ctx.stroke();
+      ctx.beginPath();ctx.arc(0,0,2.2,0,7);ctx.fill();}
+    else if(type==="tanglebug"){ctx.beginPath();
+      for(let i=0;i<7;i++){const a=i/7*Math.PI*2;ctx.moveTo(Math.cos(a)*3,Math.sin(a)*3);
+        ctx.lineTo(Math.cos(a)*(7+Math.sin(t*9+i)*2),Math.sin(a)*(7+Math.sin(t*9+i)*2));}
+      ctx.stroke();
+      ctx.beginPath();ctx.arc(0,0,4,0,7);
+      if(fill){ctx.globalAlpha=.9;ctx.fill();ctx.globalAlpha=1;}
+      ctx.stroke();}
+    else{ctx.beginPath();ctx.moveTo(0,-7);ctx.lineTo(6,0);ctx.lineTo(0,7);ctx.lineTo(-6,0);ctx.closePath();
+      if(fill){ctx.globalAlpha=.5;ctx.fill();ctx.globalAlpha=1;}
+      ctx.stroke();
+      ctx.beginPath();ctx.moveTo(-3,0);ctx.lineTo(0,-3);ctx.lineTo(3,0);ctx.lineTo(0,3);ctx.closePath();ctx.stroke();}
+    // antennae
+    ctx.beginPath();ctx.moveTo(-2,-4);ctx.lineTo(-4+Math.sin(t*9),-9);
+    ctx.moveTo(2,-4);ctx.lineTo(4+Math.sin(t*9+2),-9);ctx.stroke();
+  };
+  paint("rgba(0,0,0,.85)",false,5.5/s,7/s);  // dark underlay halo → contrast on bright faces
+  paint(col,true,2.2/s,10/s);                // neon pass with filled body parts
   ctx.restore();
 }
 function drawPatch(x,y,s,type){
