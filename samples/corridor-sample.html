@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PolybAIus — Corridor Sample v2</title>
+<style>
+  :root { color-scheme: dark; }
+  html,body { margin:0; padding:0; background:transparent; color:#cfe; }
+  body { font-family:"JetBrains Mono","Fira Code",monospace; padding:14px 18px; }
+  h1 { font-size:17px; letter-spacing:3px; color:#7df9ff; text-shadow:0 0 8px #00e5ff88; margin:0 0 2px; }
+  .sub { font-size:11px; color:#5aa; margin-bottom:12px; }
+  .pal { display:inline-block; border:1px solid #1a3a4a; padding:4px 10px; margin:0 6px 6px 0; cursor:pointer; font-size:10px; }
+  .pal.sel { border-color:currentColor; box-shadow:0 0 10px currentColor; }
+  #wrap { position:relative; border:1px solid #124; cursor:none; }
+  #scan { position:absolute; inset:0; pointer-events:none;
+    background:repeating-linear-gradient(0deg, rgba(0,0,0,.22) 0 1px, transparent 1px 3px); }
+  #hud { font-size:11px; color:#7df9ff; margin:8px 0 6px; letter-spacing:1px; white-space:pre; }
+  .hint { font-size:10px; color:#567; margin-top:6px; }
+</style>
+</head>
+<body>
+<h1>POLYbAIUS :: CORRIDOR SAMPLE v2</h1>
+<div class="sub">Gibson corridor · mouse aim · LMB fire · RMB bomb · combo multiplier · streak bombs · per-level tower reconfig</div>
+<div id="pals"></div>
+<div id="hud"></div>
+<div id="wrap"><canvas id="cv" width="900" height="600"></canvas><div id="scan"></div></div>
+<div class="hint">aim with mouse — LEFT click fire — RIGHT click bomb — bugs reaching the cannon cost integrity & reset combo/streak — miss a shot, lose your combo — clear a wave to advance the level (towers re-roll)</div>
+
+<script>
+"use strict";
+// ---------- palettes ----------
+const PALETTES=[
+ {name:"GIBSON CYAN (default)", web:"#00e5ff", text:"#7df9ff", pad:"#ffd24a",
+  bug:{rootkit:"#ff3366",voltworm:"#ffe14a",tanglebug:"#ffffff",hive:"#b26bff"}},
+ {name:"TOXIC TERMINAL", web:"#39ff6a", text:"#aaffc3", pad:"#ffd24a",
+  bug:{rootkit:"#ff4fd8",voltworm:"#ffe14a",tanglebug:"#ffffff",hive:"#b26bff"}},
+ {name:"VIOLET FLUX", web:"#b26bff", text:"#e0c2ff", pad:"#ffd24a",
+  bug:{rootkit:"#ff4fd8",voltworm:"#ffd24a",tanglebug:"#ffffff",hive:"#39ff6a"}},
+ {name:"AMBER MAINFRAME", web:"#ffb000", text:"#ffd48a", pad:"#39ff6a",
+  bug:{rootkit:"#ff3366",voltworm:"#7df9ff",tanglebug:"#ffffff",hive:"#b26bff"}},
+ {name:"GLACIER ICE", web:"#9fd8ff", text:"#e8f7ff", pad:"#b26bff",
+  bug:{rootkit:"#ff3366",voltworm:"#ffb000",tanglebug:"#ffffff",hive:"#ff4fd8"}},
+ {name:"RED ALERT", web:"#ff3355", text:"#ff9aa8", pad:"#ffd24a",
+  bug:{rootkit:"#b26bff",voltworm:"#ffe14a",tanglebug:"#ffffff",hive:"#39ff6a"}},
+];
+let PAL=PALETTES[0], hueShift=0;
+const palsDiv=document.getElementById("pals");
+PALETTES.forEach((p,i)=>{
+  const d=document.createElement("span"); d.className="pal"+(i?"":" sel"); d.style.color=p.web;
+  d.textContent=p.name;
+  d.onclick=()=>{PAL=p;document.querySelectorAll(".pal").forEach(x=>x.classList.remove("sel"));d.classList.add("sel");};
+  palsDiv.appendChild(d);
+});
+
+// ---------- tower text pools (sounds real) ----------
+const DIRS=["/usr/lib/zod","/var/spool/attack","/etc/zod.d","/home/acidburn","/opt/gibson","/proc/1337","/mnt/crypt","/srv/ice","/boot/kernel","/var/log/sect","/root/.ssh","/dev/zod0"];
+const FILES=["knight.log","acid_burn.pw","garbage.asm","razor.conf","cerebal.sock","phantom.phk","zero_cool.deb","crash_override.sh","theplague.key","da_vinci.tar.gz","limbo.rc","youdontexist.bin","return.log","void.log"];
+const PWS=["hunter2","swordfish","Tr0ub4dor&3","correct-horse-battery","ZODmaster!","p4ssw0rd","s3cur3-1c3","4451","acid^burn","CEREAL_KILLER"];
+const SYS=["systemd[1]: Started Gibson Firewall.","netstat: TCP ESTABLISHED :443","sshd: attack from 10.10.10.66","[ OK ] Mounted /dev/zod0","segfault at 0xdeadbeef ip 0x0000c0de","top - 04:21:01 up 666 days","crond: JOB 66 run every 5m","chmod 000 /var/log/audit","iptables -A INPUT -j DROP","tar -xzf zod_core.tar.gz","dmesg: wireway link UP 10Gbps","BEGIN RSA PRIVATE KEY-----","hexdump: BF B2 02 E4 1F 18 CF 31","whoami: zero_cool (uid=31337)"];
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+function towerLines(n){const out=[];for(let i=0;i<n;i++){const r=Math.random();
+  out.push(r<.22?pick(DIRS):r<.45?pick(FILES):r<.58?pick(PWS):pick(SYS));}return out;}
+
+// ---------- canvas / world ----------
+const cv=document.getElementById("cv"),ctx=cv.getContext("2d");
+const W=cv.width,H=cv.height,CX=W/2;
+const N=9; // lanes
+function laneLine(i){ return {x0:CX+(i-(N-1)/2)*16, y0:78, x1:CX+(i-(N-1)/2)*76, y1:H-70}; }
+const CANNON={x:CX,y:H-58};
+
+// towers: regenerated each level
+let towers=[],towerText=[];
+function hue(hex,deg){ // shift hex color hue
+  const n=parseInt(hex.slice(1),16); let r=(n>>16)/255,g=((n>>8)&255)/255,b=(n&255)/255;
+  const mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn; let h=0;
+  if(d){ h= mx===r?((g-b)/d)%6 : mx===g?(b-r)/d+2:(r-g)/d+4; h*=60; if(h<0)h+=360; }
+  h=(h+deg+360)%360; const s=mx?d/mx:0, v=mx;
+  const c=v*s,x=c*(1-Math.abs((h/60)%2-1)),m=v-c;
+  let R,G,B;
+  if(h<60){R=c;G=x;B=0}else if(h<120){R=x;G=c;B=0}else if(h<180){R=0;G=c;B=x}
+  else if(h<240){R=0;G=x;B=c}else if(h<300){R=x;G=0;B=c}else{R=c;G=0;B=x}
+  const to=v=>Math.round((v+m)*255).toString(16).padStart(2,"0");
+  return "#"+to(R)+to(G)+to(B);
+}
+function genTowers(){
+  towers=[]; towerText=[];
+  for(const side of [0,1]){
+    const x0=side?W-238:14, x1=side?W-14:238;
+    let y=64; const segs=[];
+    while(y<H-40){ const h2=55+Math.random()*120; segs.push({y,h:Math.min(h2,H-40-y)}); y+=h2+6; }
+    towers.push({x0,x1,segs});
+    towerText.push(segs.map(()=>towerLines(3+Math.floor(Math.random()*4))));
+  }
+  hueShift=(Math.floor(Math.random()*5)-2)*14; // per-level hue variation
+}
+genTowers();
+
+// tower color for this level (palette hue-shifted)
+function towerCol(base,alpha){ const c=hue(base,hueShift); return c+Math.round(alpha*255).toString(16).padStart(2,"0"); }
+
+// ---------- game state ----------
+let bugs=[],shots=[],parts=[];
+let score=0,combo=0,streak=0,bombs=3,integrity=100,level=1,waveKills=0,waveNeed=8;
+let spawnT=1.0,mouse={x:CX,y:H-160},flash=0,bombFx=0,nextStreak=15;
+const BASE={rootkit:100,voltworm:150,tanglebug:200,hive:250};
+function mult(){ return Math.min(8,1+Math.floor(combo/4)); }
+function resetChain(){ combo=0; streak=0; }
+function streakNext(){ return nextStreak; }
+function bumpStreak(){ if(streak>=nextStreak){ bombs=Math.min(9,bombs+1); nextStreak+=15+Math.floor(nextStreak*.6); } }
+
+function drawBug(x,y,s,type,t,col){
+  ctx.save();ctx.translate(x,y);ctx.scale(s,s);
+  ctx.strokeStyle=col;ctx.fillStyle=col;ctx.lineWidth=1.4/s;ctx.shadowColor=col;ctx.shadowBlur=9/s;
+  ctx.beginPath();
+  for(let i=0;i<6;i++){const side=i<3?-1:1,k=i%3,bx=(k-1)*6,by=side*3;
+    ctx.moveTo(bx,by);ctx.lineTo(bx+Math.sin(t*9+i*2)*2,by+side*(4+k));
+    ctx.lineTo(bx+Math.sin(t*9+i*2)*2+Math.sin(t*9+i)*3,by+side*(8+k));}
+  ctx.stroke();
+  if(type==="rootkit"){const f=Math.sin(t*6)*3;
+    ctx.beginPath();ctx.moveTo(-9,-2+f);ctx.lineTo(0,3);ctx.lineTo(-9,8+f);
+    ctx.moveTo(9,-2-f);ctx.lineTo(0,3);ctx.lineTo(9,8-f);ctx.stroke();}
+  else if(type==="voltworm"){ctx.beginPath();
+    for(let a=0;a<=Math.PI*2;a+=.3){const r=5+Math.sin(a*3+t*7)*2;
+      a===0?ctx.moveTo(Math.cos(a)*r,Math.sin(a)*r*.8):ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r*.8);}
+    ctx.stroke();ctx.beginPath();ctx.arc(0,0,1.6,0,7);ctx.fill();}
+  else if(type==="tanglebug"){ctx.beginPath();ctx.arc(0,0,3.2,0,7);ctx.fill();
+    for(let i=0;i<7;i++){const a=i/7*Math.PI*2;ctx.beginPath();ctx.moveTo(Math.cos(a)*3,Math.sin(a)*3);
+      ctx.lineTo(Math.cos(a)*(7+Math.sin(t*9+i)*2),Math.sin(a)*(7+Math.sin(t*9+i)*2));ctx.stroke();}}
+  else{ctx.beginPath();ctx.moveTo(0,-7);ctx.lineTo(6,0);ctx.lineTo(0,7);ctx.lineTo(-6,0);ctx.closePath();ctx.stroke();
+    ctx.beginPath();ctx.moveTo(-3,0);ctx.lineTo(0,-3);ctx.lineTo(3,0);ctx.lineTo(0,3);ctx.closePath();ctx.stroke();}
+  ctx.beginPath();ctx.moveTo(-2,-4);ctx.lineTo(-4+Math.sin(t*9),-9);ctx.moveTo(2,-4);ctx.lineTo(4+Math.sin(t*9+2),-9);ctx.stroke();
+  ctx.restore();
+}
+function drawPCBCannon(){
+  ctx.save();ctx.translate(CANNON.x,CANNON.y);
+  const A=PAL.pad,AC=PAL.web;
+  ctx.shadowColor=A;ctx.shadowBlur=12;ctx.lineWidth=2;ctx.strokeStyle=AC;
+  ctx.strokeRect(-14,-10,28,22);                       // silkscreen body
+  ctx.fillStyle=A;
+  [[-9,-5],[-9,7],[9,-5],[9,7]].forEach(p=>ctx.fillRect(p[0]-2.5,p[1]-2.5,5,5)); // pads
+  ctx.beginPath();ctx.arc(0,1,6,0,7);ctx.stroke();     // via ring
+  ctx.beginPath();ctx.arc(0,1,2,0,7);ctx.fillStyle=AC;ctx.fill();
+  ctx.strokeStyle=A;ctx.lineWidth=3.5;                  // barrel trace
+  ctx.beginPath();ctx.moveTo(0,-10);ctx.lineTo(0,-30);ctx.stroke();
+  ctx.fillStyle=A;ctx.fillRect(-3.5,-36,7,7);           // terminal pad
+  ctx.restore();
+}
+function boom(x,y,col){ for(let i=0;i<10;i++) parts.push({x,y,vx:(Math.random()-.5)*160,vy:(Math.random()-.5)*160,life:.5,col}); }
+
+// input
+cv.addEventListener("mousemove",e=>{const r=cv.getBoundingClientRect();mouse.x=e.clientX-r.left;mouse.y=e.clientY-r.top;});
+cv.addEventListener("mousedown",e=>{
+  if(e.button===0){ const dx=mouse.x-CANNON.x,dy=mouse.y-CANNON.y,m=Math.hypot(dx,dy)||1;
+    shots.push({x:CANNON.x,y:CANNON.y,vx:dx/m*520,vy:dy/m*520}); }
+  if(e.button===2 && bombs>0){ bombs--; bombFx=1;
+    bugs.forEach(b=>boom(b.x,b.y,PAL.bug[b.type])); bugs=[]; }
+});
+cv.addEventListener("contextmenu",e=>e.preventDefault());
+
+let last=performance.now();
+function loop(now){
+  const dt=Math.min(.05,(now-last)/1000);last=now;const t=now/1000;
+  // spawn / difficulty
+  const speed=.10+Math.min(.24,score/9000)+level*.015;
+  spawnT-=dt; if(spawnT<=0){ spawnT=Math.max(.4,1.5-score/2500);
+    const lane=Math.floor(Math.random()*N);
+    bugs.push({lane,t:0,type:["rootkit","voltworm","tanglebug","hive"][Math.floor(Math.random()*(score>800?4:2))],ph:Math.random()*7,x:0,y:0}); }
+  // update bugs
+  bugs.forEach(b=>{ b.t+=dt*speed*(b.type==="hive"?.75:1);
+    const L=laneLine(b.lane); b.x=L.x0+(L.x1-L.x0)*b.t+Math.sin(t*3+b.ph)*8*b.t; b.y=L.y0+(L.y1-L.y0)*b.t;
+    if(b.t>=1){ b.dead=true; integrity-=b.type==="hive"?20:10; flash=1; resetChain(); boom(CANNON.x,CANNON.y-20,"#ff2244"); }});
+  bugs=bugs.filter(b=>!b.dead);
+  // shots
+  shots.forEach(s=>{ s.x+=s.vx*dt; s.y+=s.vy*dt;
+    const hit=bugs.find(b=>Math.hypot(b.x-s.x,b.y-s.y)<15);
+    if(hit){ hit.dead=true; waveKills++; combo++; streak++; bumpStreak();
+      score+=BASE[hit.type]*mult(); boom(hit.x,hit.y,PAL.bug[hit.type]); s.dead=true; }});
+  shots=shots.filter(s=>{ if(s.dead)return false;
+    if(s.x<0||s.x>W||s.y<0||s.y>H){ resetChain(); return false; } return true; });
+  bugs=bugs.filter(b=>!b.dead);
+  parts.forEach(p=>{p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;}); parts=parts.filter(p=>p.life>0);
+  // wave/level
+  if(waveKills>=waveNeed){ waveKills=0; level++; waveNeed=8+level; genTowers(); }
+  flash=Math.max(0,flash-dt*3); bombFx=Math.max(0,bombFx-dt*1.5);
+
+  // ---- render ----
+  ctx.fillStyle="#000";ctx.fillRect(0,0,W,H);
+  // towers
+  towers.forEach((tw,si)=>{
+    const base=si? PAL.text:PAL.web;
+    ctx.fillStyle=towerCol(base,.10); ctx.fillRect(tw.x0,64,tw.x1-tw.x0,H-104);
+    tw.segs.forEach((sg,gi)=>{
+      ctx.strokeStyle=towerCol(base,.55); ctx.lineWidth=1; ctx.shadowColor=towerCol(base,.8); ctx.shadowBlur=6;
+      ctx.strokeRect(tw.x0,sg.y,tw.x1-tw.x0,sg.h); ctx.shadowBlur=0;
+      ctx.fillStyle=towerCol(base,.75); ctx.font="9px monospace";
+      towerText[si][gi].forEach((ln,li)=>{ if(sg.y+12+li*11<sg.y+sg.h-2)
+        ctx.fillText(ln.slice(0,Math.floor((tw.x1-tw.x0)/5.4)),tw.x0+5,sg.y+12+li*11); });
+    });
+  });
+  // corridor floor traces
+  ctx.strokeStyle=PAL.web;ctx.globalAlpha=.25;ctx.lineWidth=1;
+  for(let i=1;i<4;i++){ctx.beginPath();ctx.moveTo(CX-100*i,H-60);ctx.lineTo(CX-40*i,90);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(CX+100*i,H-60);ctx.lineTo(CX+40*i,90);ctx.stroke();}
+  ctx.globalAlpha=1;
+  // lanes
+  ctx.strokeStyle=PAL.web;ctx.shadowColor=PAL.web;ctx.shadowBlur=8;ctx.lineWidth=1.4;
+  for(let i=0;i<N;i++){const L=laneLine(i);ctx.beginPath();ctx.moveTo(L.x0,L.y0);ctx.lineTo(L.x1,L.y1);ctx.stroke();}
+  for(let k=1;k<=6;k++){const tt=k/7;ctx.globalAlpha=.25+tt*.4;ctx.beginPath();
+    const a=laneLine(0),b2=laneLine(N-1);
+    ctx.moveTo(a.x0+(a.x1-a.x0)*tt,a.y0+(a.y1-a.y0)*tt);
+    ctx.lineTo(b2.x0+(b2.x1-b2.x0)*tt,b2.y0+(b2.y1-b2.y0)*tt);ctx.stroke();}
+  ctx.globalAlpha=1;ctx.shadowBlur=0;
+  // bugs
+  bugs.forEach(b=>drawBug(b.x,b.y,.5+b.t*1.1,b.type,t+b.ph,PAL.bug[b.type]));
+  // shots
+  shots.forEach(s=>{ctx.strokeStyle=PAL.pad;ctx.shadowColor=PAL.pad;ctx.shadowBlur=8;ctx.lineWidth=2.5;
+    ctx.beginPath();ctx.moveTo(s.x,s.y);ctx.lineTo(s.x-s.vx*.02,s.y-s.vy*.02);ctx.stroke();});
+  ctx.shadowBlur=0;
+  // particles
+  parts.forEach(p=>{ctx.globalAlpha=p.life*2;ctx.fillStyle=p.col;ctx.fillRect(p.x-1.5,p.y-1.5,3,3);});
+  ctx.globalAlpha=1;
+  // cannon + reticle
+  drawPCBCannon();
+  ctx.strokeStyle=PAL.text;ctx.shadowColor=PAL.text;ctx.shadowBlur=8;ctx.lineWidth=1.2;
+  ctx.beginPath();ctx.arc(mouse.x,mouse.y,9,0,7);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(mouse.x-14,mouse.y);ctx.lineTo(mouse.x-5,mouse.y);
+  ctx.moveTo(mouse.x+5,mouse.y);ctx.lineTo(mouse.x+14,mouse.y);
+  ctx.moveTo(mouse.x,mouse.y-14);ctx.lineTo(mouse.x,mouse.y-5);
+  ctx.moveTo(mouse.x,mouse.y+5);ctx.lineTo(mouse.x,mouse.y+14);ctx.stroke();
+  ctx.shadowBlur=0;
+  if(bombFx>0){ctx.globalAlpha=bombFx*.35;ctx.fillStyle=PAL.pad;ctx.fillRect(0,0,W,H);ctx.globalAlpha=1;}
+  if(flash>0){ctx.globalAlpha=flash*.3;ctx.fillStyle="#ff2244";ctx.fillRect(0,0,W,H);ctx.globalAlpha=1;}
+  if(integrity<=0){ctx.fillStyle=PAL.text;ctx.font="22px monospace";ctx.fillText("ZOD BREACHED — reload to retry",CX-170,H/2);}
+
+  // HUD
+  const ib=Math.max(0,Math.round(integrity/10));
+  document.getElementById("hud").textContent=
+    `SCORE ${score}  ·  COMBO x${mult()} (${combo})  ·  STREAK ${streak}/next bomb @${streakNext()}`+
+    `  ·  BOMBS ${"●".repeat(bombs)}${"○".repeat(0)}  ·  INTEGRITY ${"█".repeat(ib)}${"░".repeat(10-ib)}`+
+    `  ·  LEVEL ${level} (${waveKills}/${waveNeed})`;
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

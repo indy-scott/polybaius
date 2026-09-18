@@ -28,7 +28,7 @@ past you.
 | Fuseballs | **Tanglebugs** — white multi-tendriled spheres, jump along lane edges |
 | Spikers | **Silkworms** — crawl up leaving a "corrupted trace" that must be shot away |
 | Tankers | **Hives** — split into two lesser bugs when destroyed |
-| Superzapper | **PANIC.exe** — one full-web purge per level, second use kills one random bug |
+| Superzapper | **Bomb** (right click) — starts at 3 per game, more awarded at score milestones; clears all threats on screen |
 | Warp to next level | Fly down the web into ZOD's core; dodge corrupted traces |
 | 16 level shapes | 16 web shapes (circle, V, plus, bow-tie, heart, star, infinity...) |
 
@@ -45,14 +45,26 @@ band every cycle — exactly like Tempest's color rotation, but in Hackers tones
 
 ## Scoring & high scores
 
-- Points per bug type; trace-shooting gives small points (and clears your warp path).
-- Extra life at score intervals (cap 6, like Tempest).
-- **High score table persisted in the browser (localStorage), top 10, with 3-letter
-  initials entry — arcade style.**
+- Base points per bug type; **combo chains** multiply them — consecutive hits
+  without a miss build the multiplier; a missed shot or a breach resets it.
+- Trace-shooting gives small points (and clears your warp path).
+- **Bombs:** start with 3; a kill streak (consecutive kills, no misses, no
+  damage) at escalating thresholds awards another — deliberately hard to chain.
+- Extra life every 75,000 points (cap 6 in reserve).
+- **High scores:** top 10 in localStorage with arcade-style 3-letter initials
+  entry.
 
 ## Aesthetic (from the Hackers Gibson screenshots)
 
 - **Void black background.** No skybox, no horizon glow except the web itself.
+- **Composition — the Gibson Corridor:** the PCB cannon sits in the middle of a
+  corridor between two towering Gibson monoliths. Threats come down the corridor
+  and along the web lanes toward the cannon.
+- **Per-level tower reconfiguration:** every level changes tower height profiles,
+  color scheme, and text content. Text is generated to sound real — directory
+  trees (`/usr/lib/zod/`, `/var/spool/attack/`), file names (`knight.log`,
+  `acid_burn.pw`, `garbage.asm`), password examples, systemd units, netstat
+  tables, hex dumps, RSA key blocks.
 - **Emissive neon only** — everything self-illuminated, heavy bloom, white-hot cores.
 - **Monospace text as texture** — tower faces and HUD panels built from log lines,
   hex dumps, netstat tables, RSA key blocks.
@@ -66,4 +78,5 @@ band every cycle — exactly like Tempest's color rotation, but in Hackers tones
 
 - Runs fully in the browser, no install, no backend.
 - 60 FPS on modest hardware.
-- Keyboard-first controls; consider mouse/touch as secondary.
+- Mouse-first controls: aiming target follows the mouse, left click fires,
+  right click detonates a bomb. Keyboard fallback only.
