@@ -35,13 +35,22 @@ past you.
 Progressive levels cycle the 16 shapes with rising difficulty and a new palette
 band every cycle — exactly like Tempest's color rotation, but in Hackers tones.
 
-## Difficulty ramp (slow burn)
+## Difficulty ramp (slow burn) & breach rule
 
-- Enemy speed starts low and increases as a **smooth function of level and
-  kill-count**, not per-level jumps. Target: a competent player survives
+- Enemies start **fairly slow**; speed increases as a smooth function of
+  kills/score, not per-level jumps. Target: a competent player survives
   15–25 minutes per run.
 - Spawn rate, enemy mix, and simultaneous-lane pressure all ramp on separate
   curves so difficulty climbs in texture, not just speed.
+- **No enemy reaches the bottom.** A breach costs one life (3 per game) and
+  resets combo/streak.
+
+## Power-ups (code patches)
+
+- Small floppy-disk icons float down the corridor toward the cannon.
+- Collect by shooting them or by letting them arrive (no penalty either way).
+- Abilities: **SLOW** (throttle virus flow), **RAPID** (triple-shot),
+  **SHIELD** (absorb one breach), **+BOMB**.
 
 ## Scoring & high scores
 
@@ -53,6 +62,16 @@ band every cycle — exactly like Tempest's color rotation, but in Hackers tones
 - Extra life every 75,000 points (cap 6 in reserve).
 - **High scores:** top 10 in localStorage with arcade-style 3-letter initials
   entry.
+
+## Lives & power-ups
+
+- **No bug reaches the bottom.** A breach costs a life (3 to start); game over
+  at zero. SHLD patch absorbs one breach.
+- **Code patches** — floppy-disk icons drifting down the lanes; shoot or catch
+  them. SLOW (halve bug speed), RAPID (triple-shot), SHLD (absorb a breach),
+  BOMB (+1 bomb).
+- Enemy speed starts slow and ramps gradually with total kills (smooth,
+  capped) — early game comfortable, pressure builds late.
 
 ## Aesthetic (from the Hackers Gibson screenshots)
 
@@ -78,5 +97,10 @@ band every cycle — exactly like Tempest's color rotation, but in Hackers tones
 
 - Runs fully in the browser, no install, no backend.
 - 60 FPS on modest hardware.
-- Mouse-first controls: aiming target follows the mouse, left click fires,
-  right click detonates a bomb. Keyboard fallback only.
+- Mouse-first controls: cannon translates side-to-side with the mouse, left
+  click fires fast laser bolts, right click detonates a bomb. Keyboard fallback only.
+
+## Rendering
+
+- "Lightweight 3D": Canvas 2D with manual one-point perspective projection —
+  flat emissive neon kept, depth from scale-by-distance geometry. No WebGL.

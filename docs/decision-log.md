@@ -2,13 +2,42 @@
 
 Status of each decision: **OPEN** (needs Scott), **DECIDED**, or **DEFERRED**.
 
-## D1. Rendering stack — OPEN
+## D1. Rendering stack — DECIDED
 
-| Option | Pros | Cons |
-|---|---|---|
-| **A. Canvas 2D + glow (recommended)** | Zero deps, tiny, easy to tune, 60fps easily for vector art, full control of the neon look | 3D is faked (which is fine — Tempest webs are line art, not meshes) |
-| B. Three.js (WebGL) | True 3D webs, postprocessing bloom out of the box | Heavier, steeper learning curve, glow tuning is shader work |
-| C. Phaser 3 | Game framework: scenes, input, tweens | Big dep for what is fundamentally a vector renderer; Canvas 2D underneath anyway |
+**"Lightweight 3D": Canvas 2D with manual one-point perspective projection
+(2.5D).** Flat emissive neon style is kept; depth comes from projected
+geometry — towers receding to a vanishing point, scale-by-distance, PCB-trace
+floor in perspective. No WebGL/Three.js.
+
+## D5. Audio — DECIDED
+
+**WebAudio procedural synth.** All SFX generated in code (laser zap, hit,
+bomb, breach hum), no audio assets.
+
+## D14. Firing model — DECIDED
+
+**Laser bolts** — fast, elongated, glowing projectiles (not Tempest's slow
+dots). Cannon translates side-to-side along the corridor mouth, mouse-driven.
+
+## D15. Power-ups — DECIDED
+
+**Code patches** — small floppy-disk icons that float down the corridor toward
+the cannon. Collected by shooting them or by letting them arrive at the cannon
+(no penalty for not shooting them). Abilities vary per patch:
+
+- **SLOW** — throttles virus flow (all bugs slowed ~50% for a duration)
+- **RAPID** — triple-shot spread for a duration
+- **SHIELD** — absorbs the next breach (one-time)
+- **+BOMB** — one extra bomb
+
+Patch type is shown by color + label on the disk.
+
+## D16. Breach rule & ramp — DECIDED
+
+**No enemy may reach the bottom of the corridor.** A breach costs **one life**
+(3 lives per game; game over at 0) and resets combo/streak. Because a breach
+is now so costly, enemies start **fairly slow** and speed ramps up gradually
+as a function of kills/score, not level jumps — preserving the slow-burn goal.
 
 ## D2. Art direction — DECIDED
 
@@ -32,10 +61,11 @@ Status of each decision: **OPEN** (needs Scott), **DECIDED**, or **DEFERRED**.
   Starts each game with 3 bombs; more awarded at score milestones
   (threshold rule: see scoring decisions).
 
-## D9. Player weapon placement — DECIDED
+## D9. Player weapon placement — DECIDED (amended)
 
-Cannon is stationary in the corridor center (between the towers); aiming is
-done with the mouse-driven targeting reticle rather than rotating around a rim.
+Cannon sits in the corridor (between the towers) and **translates side-to-side**
+along the corridor mouth, driven by the mouse; aiming is done with the
+mouse-driven targeting reticle. Firing is fast laser bolts (D14).
 
 ## D3. High-score persistence — DECIDED
 
@@ -64,12 +94,25 @@ Tempest.
 
 **Score intervals:** one extra life every 75,000 points, maximum 6 in reserve.
 
-## D5. Audio — OPEN
+## D15. Power-ups — DECIDED
 
-- **A. WebAudio procedural synth (recommended)** — bleeps/hums generated in code,
-  no asset files, very Tempest.
-- B. Sampled audio files (retro SFX packs).
-- C. Ship silent at first; add audio later.
+**Code patches:** small floppy-disk icons drift slowly down the lanes toward
+the cannon. Collect by shooting them or letting them land. Types:
+- **SLOW** — halves bug speed for a duration
+- **RAPID** — triple-shot laser for a duration
+- **SHLD** — absorbs the next breach
+- **BOMB** — +1 bomb
+Spawned infrequently; per-level palette stays independent of patch colors.
+
+## D16. Breach rule & ramp — DECIDED
+
+**No bug may reach the bottom of the corridor** — a breach costs a life
+(3 lives to start; SHLD patch absorbs one breach). Game over at 0 lives.
+Because breaches are now fail-state, enemy speed starts out **fairly slow**
+and ramps gradually with total kills (smooth curve, hard-capped), so early
+play is comfortable and pressure builds over time.
+
+## D5. Audio — DECIDED (see D5 above; WebAudio procedural synth)
 
 ## D6. Level structure — DECIDED (matches Tempest, adapted)
 
