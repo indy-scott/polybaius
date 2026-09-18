@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PolybAIus — Visual Direction Samples</title>
+<style>
+  :root { color-scheme: dark; }
+  html,body { margin:0; padding:0; background:transparent; color:#cfe; }
+  body { font-family: "JetBrains Mono","Fira Code",monospace; padding:16px 20px; }
+  h1 { font-size:18px; letter-spacing:3px; color:#7df9ff; text-shadow:0 0 8px #00e5ff88; margin:0 0 2px; }
+  .sub { font-size:11px; color:#5aa; margin-bottom:14px; }
+  h2 { font-size:12px; letter-spacing:2px; color:#9fe; margin:18px 0 8px; border-bottom:1px solid #124; padding-bottom:4px; }
+  .row { display:flex; gap:12px; flex-wrap:wrap; }
+  .panel { border:1px solid #1a3a4a; padding:10px 12px; cursor:pointer; width:210px; }
+  .panel.sel { border-color:#00e5ff; box-shadow:0 0 12px #00e5ff55; }
+  .panel h3 { margin:0 0 6px; font-size:12px; letter-spacing:1px; }
+  .panel p { margin:0; font-size:10px; color:#6ab; line-height:1.5; }
+  .sw { display:flex; gap:4px; margin:6px 0; }
+  .sw i { width:22px; height:12px; display:block; }
+  canvas { display:block; }
+  .gal { display:flex; gap:14px; flex-wrap:wrap; }
+  .gcell { text-align:center; }
+  .gcell .gl { font-size:10px; color:#8bd; margin-top:2px; }
+  #stage-wrap { position:relative; border:1px solid #124; }
+  #scan { position:absolute; inset:0; pointer-events:none;
+    background:repeating-linear-gradient(0deg, rgba(0,0,0,.22) 0 1px, transparent 1px 3px); }
+  .hint { font-size:10px; color:#567; margin-top:6px; }
+  .hudline { font-size:11px; color:#7df9ff; margin:8px 0 6px; letter-spacing:1px; }
+</style>
+</head>
+<body>
+<h1>POLYbAIUS :: VISUAL DIRECTION SAMPLES</h1>
+<div class="sub">throwaway samples — not shipped code · click a palette to apply it to the demo</div>
+
+<h2>1 · PALETTE</h2>
+<div class="row" id="palettes"></div>
+
+<h2>2 · ENEMY CONCEPTS (animated bug-gallery)</h2>
+<div class="gal" id="gallery"></div>
+
+<h2>3 · PLAYFIELD DEMO (Tempest web + PCB cannon)</h2>
+<div class="hudline" id="hud">INTEGRITY ██████████ 100% · SCORE 0</div>
+<div id="stage-wrap"><canvas id="stage" width="880" height="520"></canvas><div id="scan"></div></div>
+<div class="hint">←/→ or A/D move around the rim · SPACE fire · bugs that reach the rim cost integrity · speed ramps slowly with score</div>
+
+<script>
+"use strict";
+// ---------- palettes ----------
+const PALETTES = [
+ { name:"A · GIBSON CYAN", desc:"Faithful to the movie stills: cyan monoliths, magenta floor traces, white-hot cores.",
+   web:"#00e5ff", webDim:"#005f7a", text:"#7df9ff", accent:"#00e5ff", pad:"#ffd24a",
+   bug:{rootkit:"#ff3366", voltworm:"#ffe14a", tanglebug:"#ffffff", hive:"#b26bff"} },
+ { name:"B · TOXIC TERMINAL", desc:"Classic phosphor-green mainframe; bugs read as foreign magenta intrusions.",
+   web:"#39ff6a", webDim:"#0a5a2a", text:"#aaffc3", accent:"#39ff6a", pad:"#ffd24a",
+   bug:{rootkit:"#ff4fd8", voltworm:"#ffe14a", tanglebug:"#ffffff", hive:"#b26bff"} },
+ { name:"C · VIOLET FLUX", desc:"Hackers-poster violet/magenta; web glows violet, bugs burn in hot pink and gold.",
+   web:"#b26bff", webDim:"#3d1a5c", text:"#e0c2ff", accent:"#ff4fd8", pad:"#ffd24a",
+   bug:{rootkit:"#ff4fd8", voltworm:"#ffd24a", tanglebug:"#ffffff", hive:"#39ff6a"} },
+];
+let PAL = PALETTES[0];
+
+// palette panels
+const palRow = document.getElementById("palettes");
+PALETTES.forEach((p,i)=>{
+  const d=document.createElement("div"); d.className="panel"+(i===0?" sel":"");
+  d.innerHTML=`<h3 style="color:${p.web}">${p.name}</h3>
+    <div class="sw"><i style="background:${p.web}"></i><i style="background:${p.text}"></i>
+    <i style="background:${p.bug.rootkit}"></i><i style="background:${p.bug.hive}"></i><i style="background:${p.pad}"></i></div>
+    <p>${p.desc}</p>`;
+  d.onclick=()=>{ PAL=p; document.querySelectorAll(".panel").forEach(x=>x.classList.remove("sel")); d.classList.add("sel"); };
+  palRow.appendChild(d);
+});
+
+// ---------- bug drawing (shared) ----------
+function drawBug(ctx,x,y,s,type,t,col){
+  ctx.save(); ctx.translate(x,y); ctx.scale(s,s);
+  ctx.strokeStyle=col; ctx.fillStyle=col; ctx.lineWidth=1.4/s;
+  ctx.shadowColor=col; ctx.shadowBlur=8/s;
+  const wig=(ph,amp)=>Math.sin(t*9+ph)*amp;
+  ctx.beginPath();
+  for(let i=0;i<6;i++){ // six wiggling legs
+    const side=i<3?-1:1, k=i%3;
+    const bx=(k-1)*6, by=side*3;
+    ctx.moveTo(bx,by);
+    ctx.lineTo(bx+wig(i*2,2), by+side*(4+k));
+    ctx.lineTo(bx+wig(i*2,2)+wig(i,3), by+side*(8+k));
+  }
+  ctx.stroke();
+  if(type==="rootkit"){ // chevron pair
+    const f=Math.sin(t*6)*3;
+    ctx.beginPath(); ctx.moveTo(-9,-2+f); ctx.lineTo(0,3); ctx.lineTo(-9,8+f);
+    ctx.moveTo(9,-2-f); ctx.lineTo(0,3); ctx.lineTo(9,8-f); ctx.stroke();
+  } else if(type==="voltworm"){ // segmented wave
+    ctx.beginPath();
+    for(let a=0;a<=Math.PI*2;a+=.3){ const r=5+Math.sin(a*3+t*7)*2;
+      const px=Math.cos(a)*r, py=Math.sin(a)*r*.8; a===0?ctx.moveTo(px,py):ctx.lineTo(px,py);}
+    ctx.stroke();
+    ctx.beginPath(); ctx.arc(0,0,1.6,0,7); ctx.fill();
+  } else if(type==="tanglebug"){ // white core + tendrils
+    ctx.beginPath(); ctx.arc(0,0,3.2,0,7); ctx.fill();
+    for(let i=0;i<7;i++){ const a=i/7*Math.PI*2;
+      ctx.beginPath(); ctx.moveTo(Math.cos(a)*3,Math.sin(a)*3);
+      ctx.lineTo(Math.cos(a+wig(i,0.2))*(7+wig(i*3,2)), Math.sin(a+wig(i,0.2))*(7+wig(i*3,2))); ctx.stroke(); }
+  } else { // hive: rhombus w/ inner cells
+    ctx.beginPath(); ctx.moveTo(0,-7); ctx.lineTo(6,0); ctx.lineTo(0,7); ctx.lineTo(-6,0); ctx.closePath(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-3,0); ctx.lineTo(0,-3); ctx.lineTo(3,0); ctx.lineTo(0,3); ctx.closePath(); ctx.stroke();
+  }
+  // antennae
+  ctx.beginPath(); ctx.moveTo(-2,-4); ctx.lineTo(-4+wig(1,1),-9); ctx.moveTo(2,-4); ctx.lineTo(4+wig(2,1),-9); ctx.stroke();
+  ctx.restore();
+}
+const TYPES=["rootkit","voltworm","tanglebug","hive"];
+const TYPELABEL={rootkit:"ROOTKIT (flipper)",voltworm:"VOLTWORM (pulsar)",tanglebug:"TANGLEBUG (fuseball)",hive:"HIVE (tanker)"};
+
+// gallery
+const gal=document.getElementById("gallery");
+TYPES.forEach(tp=>{
+  const c=document.createElement("canvas"); c.width=120; c.height=110;
+  const cell=document.createElement("div"); cell.className="gcell";
+  cell.appendChild(c);
+  const l=document.createElement("div"); l.className="gl"; l.textContent=TYPELABEL[tp]; cell.appendChild(l);
+  gal.appendChild(cell);
+  const g=c.getContext("2d");
+  (function loop(){ g.clearRect(0,0,120,110);
+    // mini pad under bug
+    g.strokeStyle=PAL.webDim; g.beginPath(); g.ellipse(60,86,26,7,0,0,7); g.stroke();
+    drawBug(g,60,60,2.1,tp,performance.now()/1000,PAL.bug[tp]);
+    requestAnimationFrame(loop); })();
+});
+
+// ---------- playable demo ----------
+const cv=document.getElementById("stage"), ctx=cv.getContext("2d");
+const W=cv.width,H=cv.height,CX=W/2,CY=H/2-10;
+const N=12;                       // lanes (closed loop)
+const RIM={rx:330,ry:150}, FAR={rx:26,ry:12};
+let pPos=4;                       // player rim position (float, lane units)
+const keys={};
+addEventListener("keydown",e=>{ keys[e.code]=true; if(["Space","ArrowLeft","ArrowRight"].includes(e.code)) e.preventDefault(); });
+addEventListener("keyup",e=>keys[e.code]=false);
+
+let bugs=[], shots=[], score=0, integrity=100, spawnT=1.2, flash=0, zapGlow=0;
+
+function lanePoint(i,t){ // t: 0 = far end, 1 = rim
+  const a=i/N*Math.PI*2;
+  const fx=CX+Math.cos(a)*FAR.rx, fy=CY+Math.sin(a)*FAR.ry;
+  const rx=CX+Math.cos(a)*RIM.rx, ry=CY+Math.sin(a)*RIM.ry;
+  return [fx+(rx-fx)*t, fy+(ry-fy)*t];
+}
+function spawn(){
+  const lane=Math.floor(Math.random()*N);
+  bugs.push({lane, t:0, type:TYPES[Math.floor(Math.random()* (score>800?4:2))], ph:Math.random()*7, hopT:2+Math.random()*4});
+}
+function drawPCBCannon(x,y,a){ // PCB-layout part cannon, oriented outward at angle a
+  ctx.save(); ctx.translate(x,y); ctx.rotate(a); ctx.translate(18,0); // sit outside rim, face inward
+  const A=PAL.pad, AC=PAL.accent;
+  ctx.shadowColor=A; ctx.shadowBlur=12; ctx.lineWidth=2;
+  // silkscreen body
+  ctx.strokeStyle=AC; ctx.strokeRect(-8,-14,26,28);
+  // solder pads
+  ctx.fillStyle=A;
+  [[-3,-9],[-3,9],[14,-9],[14,9]].forEach(p=>{ ctx.beginPath(); ctx.rect(p[0]-2.5,p[1]-2.5,5,5); ctx.fill(); });
+  // via ring
+  ctx.beginPath(); ctx.arc(3,0,6,0,7); ctx.stroke();
+  ctx.beginPath(); ctx.arc(3,0,2,0,7); ctx.fillStyle=AC; ctx.fill();
+  // barrel = copper trace with terminal pad
+  ctx.strokeStyle=A; ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(18,0); ctx.lineTo(40,0); ctx.stroke();
+  ctx.fillStyle=A; ctx.fillRect(40,-3.5,5,7);
+  ctx.restore();
+}
+function hud(){
+  const blocks=Math.max(0,Math.round(integrity/10));
+  document.getElementById("hud").textContent=
+    `INTEGRITY ${"█".repeat(blocks)}${"░".repeat(10-blocks)} ${Math.max(0,Math.round(integrity))}% · SCORE ${score}`;
+}
+
+// static background: monolith towers of glyphs + PCB floor traces
+const bg=document.createElement("canvas"); bg.width=W; bg.height=H;
+(function(){
+  const b=bg.getContext("2d");
+  b.fillStyle="#000"; b.fillRect(0,0,W,H);
+  b.font="9px monospace";
+  const glyphs="01<>[]{}#$%&*+=ABCDEFhexZODnetstatTCPLISTEN";
+  for(let side=-1;side<=1;side+=2){
+    for(let tw=0; tw<7; tw++){
+      const x=CX+side*(150+tw*95+Math.random()*20), w=52+Math.random()*30;
+      const y0=40+Math.random()*60, h=H*.55+Math.random()*120;
+      b.fillStyle=PAL.webDim+"33"; b.fillRect(x,y0,w,h); // uses PAL at init only; repainted on palette switch
+      b.fillStyle=PAL.webDim;
+      for(let yy=y0+8; yy<y0+h-6; yy+=10)
+        b.fillText(glyphs.substr(Math.floor(Math.random()*30),Math.floor(w/6)), x+3, yy);
+      b.strokeStyle=PAL.webDim; b.strokeRect(x,y0,w,h);
+    }
+  }
+  // floor pcb traces
+  for(let i=0;i<10;i++){
+    let y=H*.86+Math.random()*40; b.strokeStyle=PAL.webDim; b.beginPath(); b.moveTo(0,y);
+    let x=0; while(x<W){ const nx=x+40+Math.random()*120; b.lineTo(nx,y); const ny=y+(Math.random()<.5?-1:1)*(8+Math.random()*14); b.lineTo(nx,ny); y=ny; x=nx; }
+    b.stroke();
+  }
+})();
+
+let last=performance.now();
+function loop(now){
+  const dt=Math.min(.05,(now-last)/1000); last=now; const t=now/1000;
+  // input
+  if(keys.ArrowLeft||keys.KeyA) pPos-=dt*6;
+  if(keys.ArrowRight||keys.KeyD) pPos+=dt*6;
+  pPos=(pPos%N+N)%N;
+  if(keys.Space){ shots.push({lane:Math.round(pPos), t:1}); keys.Space=false; }
+
+  // difficulty ramp: slow, score-driven
+  const speed=.10+Math.min(.22, score/9000);
+  spawnT-=dt; if(spawnT<=0){ spawn(); spawnT=Math.max(.45, 1.6-score/2500); }
+
+  // update
+  bugs.forEach(b=>{
+    b.t+=dt*speed*(b.type==="hive"?.7:1);
+    b.hopT-=dt; if(b.hopT<=0 && (b.type==="rootkit"||b.type==="voltworm")){ b.lane=(b.lane+(Math.random()<.5?1:N-1))%N; b.hopT=2+Math.random()*3; }
+    if(b.t>=1){ b.t=0; integrity-=b.type==="hive"?20:10; flash=1; b.lane=Math.floor(Math.random()*N); }
+  });
+  shots.forEach(s=>s.t-=dt*2.2);
+  shots=shots.filter(s=>s.t>-.05);
+  // collisions
+  shots=shots.filter(s=>{
+    const hit=bugs.findIndex(b=>b.lane===s.lane && Math.abs(b.t-s.t)<.05 && s.t>0);
+    if(hit>=0){ score+=100; bugs.splice(hit,1); zapGlow=1; return false; } return true;
+  });
+  bugs=bugs.filter(b=>b.t!==0||true);
+  flash=Math.max(0,flash-dt*3); zapGlow=Math.max(0,zapGlow-dt*4);
+
+  // render
+  ctx.fillStyle="#000"; ctx.fillRect(0,0,W,H);
+  ctx.globalAlpha=.5; ctx.drawImage(bg,0,0); ctx.globalAlpha=1;
+  ctx.fillStyle=PAL.text; ctx.font="10px monospace";
+  ctx.fillText("ZOD://wireway/def0 · THREAT LEVEL "+(1+Math.floor(score/1000)), 12, 18);
+
+  const WC=flash>0? "#ff2244" : PAL.web;
+  ctx.strokeStyle=WC; ctx.shadowColor=WC; ctx.shadowBlur=10; ctx.lineWidth=1.5;
+  // lane paths + cross segments
+  for(let i=0;i<N;i++){
+    ctx.beginPath();
+    for(let k=0;k<=8;k++){ const p=lanePoint(i,k/8); k===0?ctx.moveTo(p[0],p[1]):ctx.lineTo(p[0],p[1]); }
+    ctx.stroke();
+    const a2=(i+1)/N*Math.PI*2;
+    for(let k=1;k<=8;k++){ const tt=k/8;
+      const p1=lanePoint(i,tt), p2=lanePoint(i+1,tt);
+      ctx.globalAlpha=.35+tt*.4; ctx.beginPath(); ctx.moveTo(p1[0],p1[1]); ctx.lineTo(p2[0],p2[1]); ctx.stroke();
+    }
+    ctx.globalAlpha=1;
+  }
+  // rim
+  ctx.beginPath(); ctx.ellipse(CX,CY,RIM.rx,RIM.ry,0,0,7); ctx.stroke();
+  // shots
+  const SC=PAL.pad;
+  shots.forEach(s=>{ if(s.t<=0) return; const p=lanePoint(s.lane,s.t);
+    ctx.strokeStyle=SC; ctx.shadowColor=SC; ctx.lineWidth=2.5;
+    const p2=lanePoint(s.lane,Math.min(1,s.t+.06));
+    ctx.beginPath(); ctx.moveTo(p[0],p[1]); ctx.lineTo(p2[0],p2[1]); ctx.stroke(); });
+  // bugs
+  bugs.forEach(b=>{ const p=lanePoint(b.lane,b.t);
+    const sc=.25+b.t*1.15;
+    if(b.type==="voltworm"){ // lane electrification pulse
+      if(Math.sin(t*4+b.ph)>.6){ ctx.strokeStyle=PAL.bug.voltworm; ctx.globalAlpha=.5;
+        ctx.beginPath(); for(let k=0;k<=8;k++){ const q=lanePoint(b.lane,k/8); k===0?ctx.moveTo(q[0],q[1]):ctx.lineTo(q[0],q[1]); } ctx.stroke(); ctx.globalAlpha=1; } }
+    drawBug(ctx,p[0],p[1],sc,b.type,t+b.ph,PAL.bug[b.type]);
+  });
+  // player cannon
+  const pi=Math.round(pPos), pp=lanePoint(pi,1), pn=lanePoint(pi,0);
+  const ang=Math.atan2(pp[1]-pn[1], pp[0]-pn[0]);
+  drawPCBCannon(pp[0],pp[1],ang);
+  if(zapGlow>0){ ctx.globalAlpha=zapGlow*.4; ctx.fillStyle=PAL.accent; ctx.fillRect(0,0,W,H); ctx.globalAlpha=1; }
+  if(integrity<=0){ ctx.fillStyle=PAL.text; ctx.font="22px monospace"; ctx.fillText("ZOD BREACHED — reload to retry", CX-170, CY); }
+  hud();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
