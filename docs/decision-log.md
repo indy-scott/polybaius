@@ -53,6 +53,14 @@ as a function of kills/score, not level jumps — preserving the slow-burn goal.
   profile, color scheme, and text content. Text must sound real: directory
   trees, file names, password strings, Linux system terms (systemd units,
   netstat tables, hex dumps, RSA key blocks, /var/log lines).
+- **Target look (Scott's reference still, 2026-09):** low eye level with the
+  horizon just above mid-frame; very tall translucent pillars whose nearest
+  rows exit the top of frame; semi-transparent dark-teal face fills with
+  additive (lighter) blending so pillars show through each other; white-hot
+  edge strokes; radial base flares where pillars meet the floor; bundled
+  3-track orthogonal bus traces with bright cores; depth fog attenuating
+  distant towers; monospace text texture rendered offscreen and scaled onto
+  faces (micro-lines in the distance).
 
 ## D4. Controls — DECIDED
 
