@@ -94,15 +94,18 @@ Tempest.
 
 **Score intervals:** one extra life every 75,000 points, maximum 6 in reserve.
 
-## D15. Power-ups — DECIDED
+## D15. Power-ups — DECIDED (amended)
 
-**Code patches:** small floppy-disk icons drift slowly down the lanes toward
-the cannon. Collect by shooting them or letting them land. Types:
-- **SLOW** — halves bug speed for a duration
+**Code patches:** small floppy-disk icons drift down the lanes toward the
+cannon. **They must be shot to collect** — one that reaches the bottom un-shot
+fizzles with no effect. Types:
+- **SLOW ×3 tiers** — three colors, each a different slow-down strength:
+  slowest-drifting disk = least slowdown, fastest (hardest to hit) = most
+  slowdown. Tier I green (mild), II amber (strong), III magenta (strongest).
 - **RAPID** — triple-shot laser for a duration
 - **SHLD** — absorbs the next breach
 - **BOMB** — +1 bomb
-Spawned infrequently; per-level palette stays independent of patch colors.
+Spawned infrequently; patch colors are fixed (not palette-dependent).
 
 ## D16. Breach rule & ramp — DECIDED
 
@@ -111,6 +114,11 @@ Spawned infrequently; per-level palette stays independent of patch colors.
 Because breaches are now fail-state, enemy speed starts out **fairly slow**
 and ramps gradually with total kills (smooth curve, hard-capped), so early
 play is comfortable and pressure builds over time.
+
+## D17. Display — DECIDED
+
+Game canvas scales responsively to fit its window (letterboxed aspect ratio,
+mouse coordinates remapped through the scale).
 
 ## D5. Audio — DECIDED (see D5 above; WebAudio procedural synth)
 

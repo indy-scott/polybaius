@@ -67,9 +67,10 @@ band every cycle — exactly like Tempest's color rotation, but in Hackers tones
 
 - **No bug reaches the bottom.** A breach costs a life (3 to start); game over
   at zero. SHLD patch absorbs one breach.
-- **Code patches** — floppy-disk icons drifting down the lanes; shoot or catch
-  them. SLOW (halve bug speed), RAPID (triple-shot), SHLD (absorb a breach),
-  BOMB (+1 bomb).
+- **Code patches** — floppy-disk icons drifting down the lanes; **must be shot
+  to collect**. SLOW in three tiers (three colors: slower drift = weaker
+  slowdown, fast/hard-to-hit disk = strongest slowdown), RAPID (triple-shot),
+  SHLD (absorb a breach), BOMB (+1 bomb).
 - Enemy speed starts slow and ramps gradually with total kills (smooth,
   capped) — early game comfortable, pressure builds late.
 
@@ -97,6 +98,7 @@ band every cycle — exactly like Tempest's color rotation, but in Hackers tones
 
 - Runs fully in the browser, no install, no backend.
 - 60 FPS on modest hardware.
+- Canvas scales responsively to its window (aspect preserved, mouse remapped).
 - Mouse-first controls: cannon translates side-to-side with the mouse, left
   click fires fast laser bolts, right click detonates a bomb. Keyboard fallback only.
 
