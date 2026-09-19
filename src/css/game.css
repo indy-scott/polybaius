@@ -1,0 +1,17 @@
+:root { color-scheme: dark; }
+html,body { margin:0; padding:0; background:#000; color:#cfe; height:100%; overflow:hidden; }
+body { font-family:"JetBrains Mono","Fira Code",monospace; padding:14px 18px; box-sizing:border-box;
+  display:flex; flex-direction:column; min-height:100%; }
+h1 { font-size:17px; letter-spacing:3px; color:#7df9ff; text-shadow:0 0 8px #00e5ff88; margin:0 0 2px; flex:0 0 auto; }
+.sub { font-size:11px; color:#5aa; margin-bottom:12px; flex:0 0 auto; }
+.pal { display:inline-block; border:1px solid #1a3a4a; padding:4px 10px; margin:0 6px 6px 0; cursor:pointer; font-size:10px; }
+.pal.sel { border-color:currentColor; box-shadow:0 0 10px currentColor; }
+#pals { flex:0 0 auto; }
+#hud { font-size:11px; color:#7df9ff; margin:8px 0 6px; letter-spacing:1px; white-space:pre; flex:0 0 auto; }
+/* wrap is the letterbox stage: remaining viewport after chrome, canvas centered inside */
+#wrap { flex:1 1 auto; min-height:0; width:100%; display:flex; align-items:center; justify-content:center; }
+#board { position:relative; border:1px solid #124; cursor:none; line-height:0; flex:0 0 auto; }
+#cv { display:block; }
+#scan { position:absolute; inset:0; pointer-events:none;
+  background:repeating-linear-gradient(0deg, rgba(0,0,0,.22) 0 1px, transparent 1px 3px); }
+.hint { font-size:10px; color:#567; margin-top:6px; flex:0 0 auto; }

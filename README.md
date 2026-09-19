@@ -11,16 +11,18 @@ past the rim.
 
 ![Gameplay — the Gibson corridor](assets/gameplay.png)
 
-> Play it: open `samples/corridor-sample-v5.html` in any browser and click
-> **START** — or serve the repo statically (`python3 -m http.server 8080`).
-> No build step, no backend. The board letterboxes to fit any window and
-> renders at native device resolution (crisp on large/high-DPI screens).
+> Play it: serve the repo (`python3 -m http.server 8080`) and open
+> `http://localhost:8080/src/` — click **START**. Native ES modules, no
+> bundler, no backend. The board letterboxes to fit any window and renders
+> at native device resolution (crisp on large/high-DPI screens). The v5
+> sample at `samples/corridor-sample-v5.html` remains the behavior reference.
 
 ## Status
 
-**Pre-production → playable prototype.** All design decisions (D1–D18) are
-locked in `docs/decision-log.md`. The current reference prototype is
-`samples/corridor-sample-v5.html`; the production game will be built in `src/`.
+**Pre-production → playable src/ build.** All design decisions (D1–D18) are
+locked in `docs/decision-log.md`. Production entry is `src/index.html`
+(modular ES modules extracted from the v5 sample). The behavior reference
+remains `samples/corridor-sample-v5.html`.
 
 ## Gameplay
 
@@ -128,7 +130,7 @@ No WebGL.
 ```
 docs/      design brief, decision log (D1–D18), implementation plans
 samples/   visual/gameplay prototypes (v1–v5; v5 is the reference)
-src/       production game (to be built from the plan)
+src/       production game (ES modules: renderer, entities, waves, UI)
 assets/    fonts, sprites, audio (currently none — everything is procedural)
 ```
 
@@ -138,8 +140,13 @@ No dependencies, no build step:
 
 ```
 python3 -m http.server 8080
-# open http://localhost:8080/samples/corridor-sample-v5.html
+# production:  http://localhost:8080/src/
+# v5 sample:   http://localhost:8080/samples/corridor-sample-v5.html
 ```
+
+`src/` uses native ES modules, so it needs `http://` (opening the HTML as
+`file://` will not load). The v5 sample is still a single file and works
+either way.
 
 ## Deployment (planned)
 
@@ -158,7 +165,7 @@ Semantic versioning; see [CHANGELOG.md](CHANGELOG.md). Current: **v0.1.2**
 
 ## Roadmap
 
-- [ ] Production implementation in `src/` (modular: renderer, entities, waves, UI)
+- [x] Production implementation in `src/` (modular: renderer, entities, waves, UI)
 - [ ] Level warp sequence + corrupted-trace dodge
 - [ ] Skill-Step starting level
 - [ ] Difficulty curve tuning for 15–25 minute runs
