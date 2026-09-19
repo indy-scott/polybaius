@@ -331,7 +331,7 @@ function loop(now){
   const targetLat=Math.max(-.85,Math.min(.85,(mouse.x-CX)/430));
   cannonLat+=(targetLat-cannonLat)*Math.min(1,dt*10);
   const CANNONP=P(cannonLat,1);
-  cannonScreen.x=CANNONP.x; cannonScreen.y=CANNONP.y;
+  cannonScreen.x=CANNONP.x; cannonScreen.y=CANNONP.y+6+(cannonYOff||0);
 
   function rampSpeed(){ return (.065+Math.min(.30,totalKills*.0024))*slowFactor; }
 
@@ -526,9 +526,29 @@ function loop(now){
     `  ·  BOMBS ${"●".repeat(bombs)}  ·  LIVES ${"●".repeat(Math.max(0,lives))}`+
     (fx?`  ·  ${fx}`:"")+
     `  ·  LEVEL ${level} (${waveKills}/${waveNeed})  ·  ${muted?"MUTED":"SND ON [M]"}`;
-  requestAnimationFrame(loop);
+  if(!window.PHOTO) requestAnimationFrame(loop);
 }
-requestAnimationFrame(loop);
+// photo mode for documentation screenshots (?photo)
+if(location.search.includes("photo")){
+  // bare frame: hide page chrome so the canvas fills the window exactly
+  document.body.style.padding="0";
+  ["h1",".sub","#pals","#hud"].forEach(s=>document.querySelectorAll(s).forEach(e=>e.style.display="none"));
+  var cannonYOff=-42; // lift cannon into frame for the shot
+  spawnT=99999; patchT=99999;
+  [["rootkit",.45,3],["voltworm",.62,4],["tanglebug",.78,3],["hive",.9,5],
+   ["rootkit",.3,6],["voltworm",.5,7],["tanglebug",.66,1]].forEach((d,i)=>{
+    bugs.push({lane:d[2],t:d[1],type:d[0],ph:i*1.3,x:0,y:0}); });
+  patches.push({lane:2,t:.55,ph:0,x:0,y:0,type:PATCH_TYPES[0]});
+  patches.push({lane:6,t:.4,ph:2,x:0,y:0,type:PATCH_TYPES[1]});
+  patches.push({lane:4,t:.28,ph:4,x:0,y:0,type:PATCH_TYPES[3]});
+  score=4850; combo=7; streak=9; bombs=3; lives=3; level=3; waveKills=4; waveNeed=11; totalKills=58;
+  shots.push({x:CX,y:H*.72,px:CX-5,py:H*.76,vx:0,vy:-1500});
+  // deterministic capture: run a few simulation frames synchronously, then freeze
+  window.PHOTO=true;
+  setTimeout(function(){ last=performance.now();
+    for(var i=0;i<10;i++) loop(last+i*16.7); }, 300);
+}
+if(!location.search.includes("photo")) requestAnimationFrame(loop);
 </script>
 </body>
 </html>

@@ -32,4 +32,20 @@ Pre-production prototype: visual direction and gameplay design locked.
   audio, combo-chain scoring, streak-awarded bombs, arcade high-score table,
   Gibson Cyan default palette, local hosting via Cloudflare tunnel.
 
+## [0.1.1] — 2026-09-18
+
+Documentation release.
+
+### Added
+- README graphics: gameplay screenshot (`assets/gameplay.png`) and enemy/patch
+  codex (`assets/enemies.png`), captured from the v5 prototype via a
+  deterministic `?photo` capture mode (headless Chromium + canvas buffer
+  extraction).
+- "How a run plays" gameplay walkthrough in the README.
+
+### Fixed
+- v5 photo mode: laser bolt origin follows the shortened muzzle.
+
+[0.1.1]: https://github.com/indy-scott/polybaius/releases/tag/v0.1.1
 [0.1.0]: https://github.com/indy-scott/polybaius/releases/tag/v0.1.0
+

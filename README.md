@@ -9,6 +9,8 @@ corridor between towering data monoliths. Viruses and intrusion bugs — small
 creatures with animated limbs — descend the corridor toward you. Nothing gets
 past the rim.
 
+![Gameplay — the Gibson corridor](assets/gameplay.png)
+
 > Play it: open `samples/corridor-sample-v5.html` in any browser, or serve the
 > repo statically (`python3 -m http.server 8080`). No build step, no backend.
 
@@ -39,6 +41,8 @@ Core loop (Tempest mechanics, Gibson presentation):
 | Tanglebug | Fuseball | jukes unpredictably, hard to hit |
 | Hive | Tanker | slow, tanky, splits when destroyed |
 
+![Enemy codex and code patches](assets/enemies.png)
+
 ### Code patches (power-ups)
 
 Floppy-disk icons drift down the lanes. **They must be shot to collect** — one
@@ -52,6 +56,28 @@ that lands un-shot fizzles with no effect.
 | RAP | cyan | triple-shot laser for 8s |
 | SHL | violet | absorbs the next breach |
 | BMB | white | +1 bomb |
+
+### How a run plays
+
+1. **Descend & defend.** Bugs spawn at the far end of the corridor and advance
+   down one of 8 lanes toward your cannon. Anything that reaches the bottom
+   costs a life — you have 3, and there are no continues.
+2. **Ramp.** Enemy speed and spawn rate start gentle and rise smoothly with
+   your total kill count (hard-capped), so the first minute is calm and the
+   pressure compounds over time. Bug variety widens as you rack up kills
+   (Tanglebugs after 12, Hives after 30).
+3. **Waves & levels.** Clearing a wave's quota of bugs advances the level;
+   each level re-rolls the corridor — new tower heights, a shifted color
+   scheme, and fresh tower text — and raises the wave quota.
+4. **Patches.** Floppy disks drift down occasionally. Shoot them to collect;
+   a disk that lands un-shot is wasted. Tiers trade risk for power: the
+   slow-drifting green S1 is easy to hit but only slows viruses 25%, while
+   the fast magenta S3 is a hard target worth 60% slowdown.
+5. **Game over.** At zero lives the run ends. If your score makes the top 10
+   you enter 3-letter arcade initials; the table persists in `localStorage`.
+6. **Chase the multipliers.** The combo chain (×8 max) and bomb-award kill
+   streaks both die on a missed shot or a breach — the high-score chase is
+   about accuracy under pressure, not just speed.
 
 ### Scoring
 
@@ -124,8 +150,8 @@ scotthepburn.com pattern:
 
 ## Versioning
 
-Semantic versioning; see [CHANGELOG.md](CHANGELOG.md). Current: **v0.1.0**
-(pre-production prototype, visual direction locked).
+Semantic versioning; see [CHANGELOG.md](CHANGELOG.md). Current: **v0.1.1**
+(pre-production prototype, visual direction locked, README documented).
 
 ## Roadmap
 
