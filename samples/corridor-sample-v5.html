@@ -5,18 +5,22 @@
 <title>PolybAIus — Corridor Sample v5 (Gibson depth)</title>
 <style>
   :root { color-scheme: dark; }
-  html,body { margin:0; padding:0; background:transparent; color:#cfe; }
-  body { font-family:"JetBrains Mono","Fira Code",monospace; padding:14px 18px; }
-  h1 { font-size:17px; letter-spacing:3px; color:#7df9ff; text-shadow:0 0 8px #00e5ff88; margin:0 0 2px; }
-  .sub { font-size:11px; color:#5aa; margin-bottom:12px; }
+  html,body { margin:0; padding:0; background:#000; color:#cfe; height:100%; overflow:hidden; }
+  body { font-family:"JetBrains Mono","Fira Code",monospace; padding:14px 18px; box-sizing:border-box;
+    display:flex; flex-direction:column; min-height:100%; }
+  h1 { font-size:17px; letter-spacing:3px; color:#7df9ff; text-shadow:0 0 8px #00e5ff88; margin:0 0 2px; flex:0 0 auto; }
+  .sub { font-size:11px; color:#5aa; margin-bottom:12px; flex:0 0 auto; }
   .pal { display:inline-block; border:1px solid #1a3a4a; padding:4px 10px; margin:0 6px 6px 0; cursor:pointer; font-size:10px; }
   .pal.sel { border-color:currentColor; box-shadow:0 0 10px currentColor; }
-  #wrap { position:relative; border:1px solid #124; cursor:none; max-width:100%; }
-  #cv { display:block; width:100%; height:auto; }
+  #pals { flex:0 0 auto; }
+  #hud { font-size:11px; color:#7df9ff; margin:8px 0 6px; letter-spacing:1px; white-space:pre; flex:0 0 auto; }
+  /* wrap is the letterbox stage: remaining viewport after chrome, canvas centered inside */
+  #wrap { flex:1 1 auto; min-height:0; width:100%; display:flex; align-items:center; justify-content:center; }
+  #board { position:relative; border:1px solid #124; cursor:none; line-height:0; flex:0 0 auto; }
+  #cv { display:block; }
   #scan { position:absolute; inset:0; pointer-events:none;
     background:repeating-linear-gradient(0deg, rgba(0,0,0,.22) 0 1px, transparent 1px 3px); }
-  #hud { font-size:11px; color:#7df9ff; margin:8px 0 6px; letter-spacing:1px; white-space:pre; }
-  .hint { font-size:10px; color:#567; margin-top:6px; }
+  .hint { font-size:10px; color:#567; margin-top:6px; flex:0 0 auto; }
 </style>
 </head>
 <body>
@@ -24,7 +28,7 @@
 <div class="sub">low eye level · tall translucent additive pillars · white-hot edges · base flares · bundled bus traces · shoot-to-collect patches · lives · WebAudio</div>
 <div id="pals"></div>
 <div id="hud"></div>
-<div id="wrap"><canvas id="cv" width="900" height="640"></canvas><div id="scan"></div></div>
+<div id="wrap"><div id="board"><canvas id="cv" width="900" height="640"></canvas><div id="scan"></div></div></div>
 <div class="hint">mouse moves cannon + aims — LEFT click laser — RIGHT click bomb — patches SHOT to collect: S1/S2/S3 slow tiers + RAP/SHL/BMB — bug at the bottom = lost life — resizes with window — M mutes</div>
 
 <script>
@@ -49,7 +53,7 @@ const palsDiv=document.getElementById("pals");
 PALETTES.forEach((p,i)=>{
   const d=document.createElement("span"); d.className="pal"+(i?"":" sel"); d.style.color=p.web;
   d.textContent=p.name;
-  d.onclick=()=>{PAL=p;document.querySelectorAll(".pal").forEach(x=>x.classList.remove("sel"));d.classList.add("sel");};
+  d.onclick=()=>{PAL=p;document.querySelectorAll(".pal").forEach(x=>x.classList.remove("sel"));d.classList.add("sel"); sceneryDirty=true;};
   palsDiv.appendChild(d);
 });
 
@@ -65,12 +69,42 @@ function towerLines(n){const out=[];for(let i=0;i<n;i++){const r=Math.random();
 
 // ================= canvas / projection =================
 // low eye level: horizon just above mid-frame, floor at the bottom edge
+// Logical game space stays 900x640; the backing store is CSS size x DPR (see fitCanvas).
 const cv=document.getElementById("cv"),ctx=cv.getContext("2d");
-const W=cv.width,H=cv.height,CX=W/2;
+const W=900,H=640,CX=W/2;
 const HORIZON=H*.52, FLOOR=H-6, VPX=CX;
+let scaleX=1, scaleY=1, sceneryDirty=true;
 function persp(t){ return 1/(1+(1-t)*2.2); }        // t 0(far)..1(near) → .31..1
 function P(lat,t){ const s=persp(t);
   return { x:VPX+lat*430*s, y:HORIZON+(FLOOR-HORIZON)*s, s }; }
+
+// Letterbox 900x640 into #wrap (remaining viewport after chrome) and size the backing
+// store at device pixels so large / high-DPR screens stay sharp. Cap ~2560 px wide.
+function fitCanvas(){
+  const wrapEl=document.getElementById("wrap");
+  const availW=Math.max(50, wrapEl.clientWidth);
+  const availH=Math.max(50, wrapEl.clientHeight);
+  const cssScale=Math.min(availW/W, availH/H);
+  const cssW=Math.max(1, Math.floor(W*cssScale));
+  const cssH=Math.max(1, Math.floor(H*cssScale));
+  const dpr=window.devicePixelRatio||1;
+  const capDpr=Math.min(dpr, 2560/cssW);
+  const bufW=Math.max(1, Math.round(cssW*capDpr));
+  const bufH=Math.max(1, Math.round(cssH*capDpr));
+  if(cv.width!==bufW || cv.height!==bufH){
+    cv.width=bufW; cv.height=bufH;
+    sceneryDirty=true; // canvas buffer reset drops GPU state; rebuild glow cache
+  }
+  if(cv.style.width!==cssW+"px") cv.style.width=cssW+"px";
+  if(cv.style.height!==cssH+"px") cv.style.height=cssH+"px";
+  scaleX=bufW/W; scaleY=bufH/H;
+}
+function bindResize(){
+  addEventListener("resize", fitCanvas);
+  if(typeof ResizeObserver!=="undefined"){
+    new ResizeObserver(fitCanvas).observe(document.getElementById("wrap"));
+  }
+}
 
 // ================= color helpers =================
 function hue(hex,deg){
@@ -98,6 +132,14 @@ function makeTextTex(tw){
     g.fillText(tw.lines[i%tw.lines.length].slice(0,26),3,12+i*13);
   }
   tw.tex=c;
+}
+function bakeTrace(tr){
+  // Pre-project static trace geometry once per world so the hot loop does not remap P() per pulse.
+  const pts=tr.pts.map(p=>P(p[0],p[1]));
+  tr.screen=pts;
+  const segs=[]; let total=0;
+  for(let i=1;i<pts.length;i++){ const L=Math.hypot(pts[i].x-pts[i-1].x,pts[i].y-pts[i-1].y); segs.push(L); total+=L; }
+  tr.segLen=segs; tr.totalLen=total;
 }
 function genWorld(){
   towers=[]; traces=[]; pulses=[];
@@ -133,13 +175,13 @@ function genWorld(){
     if(t<.6) pts.push([lat,.72+Math.random()*.25]);
     traces.push({pts});
   }
+  traces.forEach(bakeTrace);
   pulses=traces.map((_,i)=>({tr:i,u:Math.random(),sp:.12+Math.random()*.2}));
   hueShift=(Math.floor(Math.random()*5)-2)*14;
+  sceneryDirty=true;
 }
 function tracePoint(tr,u){
-  const pts=traces[tr].pts.map(p=>P(p[0],p[1]));
-  let total=0; const segs=[];
-  for(let i=1;i<pts.length;i++){ const L=Math.hypot(pts[i].x-pts[i-1].x,pts[i].y-pts[i-1].y); segs.push(L); total+=L; }
+  const pts=traces[tr].screen, segs=traces[tr].segLen, total=traces[tr].totalLen;
   let d=u*total;
   for(let i=1;i<pts.length;i++){
     if(d<=segs[i-1]){ const f=d/(segs[i-1]||1);
@@ -156,6 +198,7 @@ let score=0,combo=0,streak=0,bombs=3,lives=3,level=1,waveKills=0,waveNeed=8,tota
 let spawnT=2.2,patchT=9,mouse={x:CX,y:H-170},flash=0,bombFx=0,nextStreak=15,cannonLat=0;
 let slowT=0,slowFactor=1,rapidT=0,shield=false,gameOver=false;
 let cannonScreen={x:CX,y:FLOOR+10};
+let started=false, titleCool=0, cannonYOff=0;
 const N=8, LANE_SP=.12;
 const BASE={rootkit:100,voltworm:150,tanglebug:200,hive:250};
 const PATCH_TYPES=[
@@ -181,6 +224,15 @@ function resetGame(){
   bugs=[];shots=[];parts=[];patches=[];
   score=0;combo=0;streak=0;bombs=3;lives=3;level=1;waveKills=0;waveNeed=8;totalKills=0;
   spawnT=2.2;patchT=9;slowT=0;slowFactor=1;rapidT=0;shield=false;gameOver=false;nextStreak=15;genWorld();
+}
+function beginPlay(){
+  started=true;
+  try{ audio().resume(); }catch(e){}
+}
+function returnToTitle(){
+  resetGame();
+  started=false;
+  titleCool=.35; // swallow the dismiss click so a double-click does not auto-start
 }
 
 // ================= high scores (localStorage, arcade style: D3/D12) =================
@@ -221,11 +273,16 @@ const sfx={
 };
 addEventListener("keydown",e=>{
   if(e.code==="KeyM") muted=!muted;
+  if(!started){
+    if(titleCool>0) return;
+    if(e.code==="Enter"||e.code==="Space"){ e.preventDefault(); beginPlay(); }
+    return;
+  }
   if(gameOver && overPhase==="entry"){
     if(/^[a-zA-Z0-9]$/.test(e.key) && entryBuf.length<3){ entryBuf+=e.key.toUpperCase(); }
     else if(e.code==="Backspace"){ entryBuf=entryBuf.slice(0,-1); }
     else if(e.code==="Enter" && entryBuf.length>0){ saveScore(entryBuf); overPhase="table"; }
-  } else if(gameOver && overPhase==="table" && (e.code==="Enter"||e.code==="Space")){ resetGame(); }
+  } else if(gameOver && overPhase==="table" && (e.code==="Enter"||e.code==="Space")){ e.preventDefault(); returnToTitle(); }
 });
 
 // ================= drawing =================
@@ -268,15 +325,16 @@ function drawBug(x,y,s,type,t,col){
     ctx.beginPath();ctx.moveTo(-2,-4);ctx.lineTo(-4+Math.sin(t*9),-9);
     ctx.moveTo(2,-4);ctx.lineTo(4+Math.sin(t*9+2),-9);ctx.stroke();
   };
-  paint("rgba(0,0,0,.85)",false,5.5/s,7/s);  // dark underlay halo → contrast on bright faces
-  paint(col,true,2.2/s,10/s);                // neon pass with filled body parts
+  paint("rgba(0,0,0,.85)",false,5.5/s,0);  // underlay: thick dark stroke already contrasts; skip shadowBlur
+  // neon glow only on near sprites: far ones are tiny and shadowBlur is wasted GPU fill
+  paint(col,true,2.2/s, s>1.2?10/s:0);
   ctx.restore();
 }
 function drawPatch(x,y,s,type){
   const col=type.col;
   ctx.save();ctx.translate(x,y);ctx.scale(s,s);
   ctx.strokeStyle=col;ctx.fillStyle=col;ctx.lineWidth=1.6/s;
-  ctx.shadowColor=col;ctx.shadowBlur=10/s;
+  ctx.shadowColor=col; ctx.shadowBlur=s>0.8?10/s:0; // skip glow on distant chips
   ctx.translate(0,Math.sin(performance.now()/300)*1.5/s);
   ctx.strokeRect(-8,-8,16,16);
   ctx.strokeRect(-4.5,-8,9,5);
@@ -302,6 +360,113 @@ function drawPCBCannon(x,y){
 }
 function boom(x,y,col,n){ for(let i=0;i<(n||10);i++) parts.push({x,y,vx:(Math.random()-.5)*180,vy:(Math.random()-.5)*180,life:.5,col}); }
 
+// Scenery cache: towers + floor traces + lane guides are static between world/palette/resize.
+// Baking them (with their expensive shadowBlur) once avoids per-frame gradient + blur cost.
+const scenery=document.createElement("canvas");
+const sctx=scenery.getContext("2d");
+function buildScenery(){
+  scenery.width=cv.width; scenery.height=cv.height;
+  const c=sctx;
+  c.setTransform(scaleX,0,0,scaleY,0,0);
+  c.fillStyle="#000"; c.fillRect(0,0,W,H);
+  const vg=c.createRadialGradient(VPX,HORIZON,2,VPX,HORIZON,190);
+  vg.addColorStop(0,"#0a2a3a"); vg.addColorStop(.4,PAL.web+"2a"); vg.addColorStop(1,"#0000");
+  c.fillStyle=vg; c.fillRect(VPX-190,HORIZON-140,380,260);
+
+  towers.forEach(tw=>{
+    const side=tw.side, fog=Math.max(.25,tw.t);
+    const t2=Math.max(.05,tw.t-tw.d);
+    const nL=P(tw.lat-tw.w/2,tw.t), nR=P(tw.lat+tw.w/2,tw.t);
+    const fL=P(tw.lat-tw.w/2,t2),   fR=P(tw.lat+tw.w/2,t2);
+    const wdt=nR.x-nL.x; if(wdt<3) return;
+    const gy=nL.y, topY=gy-tw.h*nL.s;
+    const gyF=fL.y, topYF=gyF-tw.h*fL.s;
+    const innerNear= side===-1? nR:nL, innerFar= side===-1? fR:fL;
+
+    let fg=c.createLinearGradient(0,topY,0,gy);
+    fg.addColorStop(0,towerCol(PAL.web,.34*fog)); fg.addColorStop(1,towerCol("#061520",.55*fog));
+    c.fillStyle=fg; c.fillRect(nL.x,topY,wdt,gy-topY);
+    c.globalCompositeOperation="lighter";
+    c.globalAlpha=.75*fog;
+    c.drawImage(tw.tex, nL.x, topY, wdt, gy-topY);
+    c.globalAlpha=1; c.globalCompositeOperation="source-over";
+    c.strokeStyle=towerCol(PAL.text,.5*fog); c.lineWidth=1;
+    for(let pI=0;pI<2;pI++){
+      const px=nL.x+wdt*(.12+pI*.45), pw2=wdt*.3, py=topY+(gy-topY)*(.08+pI*.4), ph2=(gy-topY)*.18;
+      c.globalAlpha=.5*fog; c.strokeRect(px,py,pw2,ph2);
+    }
+    c.globalAlpha=1;
+    c.globalCompositeOperation="lighter";
+    c.strokeStyle=PAL.text; c.lineWidth=Math.max(.6,2.2*nL.s); c.globalAlpha=.9*fog;
+    c.shadowColor=PAL.web; c.shadowBlur=8*nL.s;
+    c.strokeRect(nL.x,topY,wdt,gy-topY);
+    c.beginPath(); c.moveTo(innerNear.x,gy); c.lineTo(innerNear.x,topY); c.stroke();
+    c.beginPath();
+    c.moveTo(nL.x,topY); c.lineTo(nR.x,topY); c.lineTo(fR.x,topYF); c.lineTo(fL.x,topYF);
+    c.closePath();
+    c.fillStyle=towerCol(PAL.text,.16*fog); c.fill();
+    c.beginPath();
+    c.moveTo(innerNear.x,gy); c.lineTo(innerNear.x,topY);
+    c.lineTo(innerFar.x,topYF); c.lineTo(innerFar.x,gyF);
+    c.closePath();
+    c.fillStyle=towerCol(PAL.web,.24*fog); c.fill();
+    c.strokeStyle=towerCol(PAL.web,.5*fog); c.lineWidth=1;
+    for(let sI=1;sI<6;sI++){ const f=sI/6;
+      c.beginPath();
+      c.moveTo(innerNear.x, topY+(gy-topY)*f);
+      c.lineTo(innerFar.x, topYF+(gyF-topYF)*f);
+      c.stroke();
+    }
+    const bf=c.createRadialGradient(innerNear.x,gy,1,innerNear.x,gy,wdt*1.4);
+    bf.addColorStop(0,PAL.web+"66"); bf.addColorStop(1,"#0000");
+    c.globalAlpha=.8*fog; c.fillStyle=bf;
+    c.beginPath(); c.ellipse(innerNear.x,gy,wdt*1.4,wdt*.22,0,0,7); c.fill();
+    c.globalAlpha=1; c.shadowBlur=0; c.globalCompositeOperation="source-over";
+  });
+
+  c.globalCompositeOperation="lighter";
+  traces.forEach(tr=>{
+    const pts=tr.screen;
+    c.strokeStyle=tr.bus? PAL.web : PAL.trace; c.globalAlpha=.22; c.lineWidth=4;
+    c.shadowColor=c.strokeStyle; c.shadowBlur=9;
+    c.beginPath(); pts.forEach((p,k)=>k===0?c.moveTo(p.x,p.y):c.lineTo(p.x,p.y)); c.stroke();
+    c.globalAlpha=.85; c.lineWidth=1.3; c.strokeStyle="#bfefff";
+    c.beginPath(); pts.forEach((p,k)=>k===0?c.moveTo(p.x,p.y):c.lineTo(p.x,p.y)); c.stroke();
+    c.shadowBlur=0; c.globalAlpha=1;
+  });
+  c.globalCompositeOperation="source-over";
+
+  c.strokeStyle=PAL.web; c.lineWidth=1;
+  for(let i=0;i<N;i++){ const lat=(i-(N-1)/2)*LANE_SP;
+    const a=P(lat,.02), b2=P(lat,1);
+    c.globalAlpha=.15; c.setLineDash([4,9]);
+    c.beginPath(); c.moveTo(a.x,a.y); c.lineTo(b2.x,b2.y); c.stroke();
+  }
+  c.setLineDash([]); c.globalAlpha=1;
+  sceneryDirty=false;
+}
+
+function drawStartOverlay(t){
+  ctx.fillStyle="rgba(0,4,10,.72)"; ctx.fillRect(0,0,W,H);
+  ctx.textAlign="center";
+  ctx.shadowColor=PAL.web; ctx.shadowBlur=22;
+  ctx.fillStyle=PAL.text; ctx.font="42px monospace";
+  ctx.fillText("POLYbAIUS",CX,H*.34);
+  ctx.shadowBlur=8;
+  ctx.font="12px monospace"; ctx.fillStyle=PAL.web;
+  ctx.fillText("GIBSON MAINFRAME  ·  CORRIDOR DEFENSE",CX,H*.40);
+  const pulse=.55+.45*Math.sin(t*4);
+  const bw=240, bh=42, bx=CX-bw/2, by=H*.50;
+  ctx.shadowBlur=14*pulse; ctx.strokeStyle=PAL.web; ctx.lineWidth=2;
+  ctx.strokeRect(bx,by,bw,bh);
+  ctx.globalAlpha=pulse; ctx.fillStyle=PAL.text; ctx.font="14px monospace";
+  ctx.fillText("CLICK TO START",CX,by+27);
+  ctx.globalAlpha=1; ctx.shadowBlur=0;
+  ctx.font="10px monospace"; ctx.fillStyle=PAL.web;
+  ctx.fillText("M MUTE  ·  LEFT LASER  ·  RIGHT BOMB",CX,H*.70);
+  ctx.textAlign="left";
+}
+
 // ================= input =================
 cv.addEventListener("mousemove",e=>{
   const r=cv.getBoundingClientRect();
@@ -309,7 +474,8 @@ cv.addEventListener("mousemove",e=>{
   mouse.y=(e.clientY-r.top)*(H/r.height);
 });
 cv.addEventListener("mousedown",e=>{
-  if(gameOver){ if(overPhase==="table") resetGame(); return; }
+  if(!started){ if(titleCool>0) return; beginPlay(); return; }
+  if(gameOver){ if(overPhase==="table") returnToTitle(); return; }
   if(e.button===0){
     const dx=mouse.x-cannonScreen.x, dy=mouse.y-(cannonScreen.y-18), m=Math.hypot(dx,dy)||1;
     const angles= rapidT>0 ? [-.12,0,.12] : [0];
@@ -324,18 +490,25 @@ cv.addEventListener("mousedown",e=>{
 cv.addEventListener("contextmenu",e=>e.preventDefault());
 
 // ================= loop =================
+const hudEl=document.getElementById("hud");
+let lastHud="";
 let last=performance.now();
 function loop(now){
   const dt=Math.min(.05,(now-last)/1000);last=now;const t=now/1000;
+  titleCool=Math.max(0,titleCool-dt);
 
-  const targetLat=Math.max(-.85,Math.min(.85,(mouse.x-CX)/430));
-  cannonLat+=(targetLat-cannonLat)*Math.min(1,dt*10);
+  if(started){
+    const targetLat=Math.max(-.85,Math.min(.85,(mouse.x-CX)/430));
+    cannonLat+=(targetLat-cannonLat)*Math.min(1,dt*10);
+  } else {
+    cannonLat=0;
+  }
   const CANNONP=P(cannonLat,1);
   cannonScreen.x=CANNONP.x; cannonScreen.y=CANNONP.y+6+(cannonYOff||0);
 
   function rampSpeed(){ return (.065+Math.min(.30,totalKills*.0024))*slowFactor; }
 
-  if(!gameOver){
+  if(started && !gameOver){
     spawnT-=dt; if(spawnT<=0){ spawnT=Math.max(.55, 2.2-totalKills*.014);
       const lane=Math.floor(Math.random()*N);
       bugs.push({lane,t:.02,type:["rootkit","voltworm","tanglebug","hive"][Math.floor(Math.random()*(totalKills>30?4:totalKills>12?3:1))],ph:Math.random()*7,x:0,y:0}); }
@@ -345,150 +518,82 @@ function loop(now){
     rapidT=Math.max(0,rapidT-dt);
   }
 
-  bugs.forEach(b=>{ b.t+=dt*rampSpeed()*(b.type==="hive"?.75:1);
-    const lat=(b.lane-(N-1)/2)*LANE_SP + Math.sin(t*3+b.ph)*.04*b.t;
-    const p=P(lat,b.t); b.x=p.x; b.y=p.y; b.s=p.s; b.rad=15*p.s+4;
-    if(b.t>=1){ b.dead=true;
-      if(shield){ shield=false; boom(b.x,b.y,PAL.text,10); }
-      else { lives--; flash=1; resetChain(); sfx.breach(); boom(cannonScreen.x,cannonScreen.y-24,"#ff2244");
-             if(lives<=0) beginGameOver(); }
-    }});
-  bugs=bugs.filter(b=>!b.dead);
-  patches.forEach(p=>{ p.t+=dt*.055*p.type.drift;
-    const lat=(p.lane-(N-1)/2)*LANE_SP;
-    const q=P(lat,p.t); p.x=q.x; p.y=q.y; p.s=q.s; p.rad=14*q.s+4;
-    if(p.t>=1){ p.dead=true; boom(p.x,p.y,p.type.col,4); }});
-  patches=patches.filter(p=>!p.dead);
-  shots.forEach(s=>{ s.px=s.x; s.py=s.y; s.x+=s.vx*dt; s.y+=s.vy*dt;
-    const sweep=(o,rad)=>{ const dx=s.x-s.px, dy=s.y-s.py, L2=dx*dx+dy*dy||1;
-      let u=((o.x-s.px)*dx+(o.y-s.py)*dy)/L2; u=Math.max(0,Math.min(1,u));
-      return Math.hypot(o.x-(s.px+dx*u), o.y-(s.py+dy*u)) < rad+3; };
-    const hit=bugs.find(b=>sweep(b,b.rad));
-    const phit=patches.find(p=>sweep(p,p.rad));
-    if(hit){ hit.dead=true; waveKills++; totalKills++; combo++; streak++; bumpStreak(); sfx.hit();
-      score+=BASE[hit.type]*mult(); boom(hit.x,hit.y,PAL.bug[hit.type],12); s.dead=true; }
-    if(phit){ phit.dead=true; applyPatch(phit.type); boom(phit.x,phit.y,phit.type.col,8); s.dead=true; }});
-  shots=shots.filter(s=>{ if(s.dead)return false;
-    if(s.x<-40||s.x>W+40||s.y<-40||s.y>H+40){ resetChain(); return false; } return true; });
-  bugs=bugs.filter(b=>!b.dead);
-  parts.forEach(p=>{p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;}); parts=parts.filter(p=>p.life>0);
-  pulses.forEach(p=>{ p.u=(p.u+dt*p.sp)%1; });
-  if(!gameOver && waveKills>=waveNeed){ waveKills=0; level++; waveNeed=8+level; genWorld(); }
-  flash=Math.max(0,flash-dt*3); bombFx=Math.max(0,bombFx-dt*1.5);
+  if(started){
+    bugs.forEach(b=>{ b.t+=dt*rampSpeed()*(b.type==="hive"?.75:1);
+      const lat=(b.lane-(N-1)/2)*LANE_SP + Math.sin(t*3+b.ph)*.04*b.t;
+      const p=P(lat,b.t); b.x=p.x; b.y=p.y; b.s=p.s; b.rad=15*p.s+4;
+      if(b.t>=1){ b.dead=true;
+        if(shield){ shield=false; boom(b.x,b.y,PAL.text,10); }
+        else { lives--; flash=1; resetChain(); sfx.breach(); boom(cannonScreen.x,cannonScreen.y-24,"#ff2244");
+               if(lives<=0) beginGameOver(); }
+      }});
+    bugs=bugs.filter(b=>!b.dead);
+    patches.forEach(p=>{ p.t+=dt*.055*p.type.drift;
+      const lat=(p.lane-(N-1)/2)*LANE_SP;
+      const q=P(lat,p.t); p.x=q.x; p.y=q.y; p.s=q.s; p.rad=14*q.s+4;
+      if(p.t>=1){ p.dead=true; boom(p.x,p.y,p.type.col,4); }});
+    patches=patches.filter(p=>!p.dead);
+    shots.forEach(s=>{ s.px=s.x; s.py=s.y; s.x+=s.vx*dt; s.y+=s.vy*dt;
+      const sweep=(o,rad)=>{ const dx=s.x-s.px, dy=s.y-s.py, L2=dx*dx+dy*dy||1;
+        let u=((o.x-s.px)*dx+(o.y-s.py)*dy)/L2; u=Math.max(0,Math.min(1,u));
+        return Math.hypot(o.x-(s.px+dx*u), o.y-(s.py+dy*u)) < rad+3; };
+      const hit=bugs.find(b=>sweep(b,b.rad));
+      const phit=patches.find(p=>sweep(p,p.rad));
+      if(hit){ hit.dead=true; waveKills++; totalKills++; combo++; streak++; bumpStreak(); sfx.hit();
+        score+=BASE[hit.type]*mult(); boom(hit.x,hit.y,PAL.bug[hit.type],12); s.dead=true; }
+      if(phit){ phit.dead=true; applyPatch(phit.type); boom(phit.x,phit.y,phit.type.col,8); s.dead=true; }});
+    shots=shots.filter(s=>{ if(s.dead)return false;
+      if(s.x<-40||s.x>W+40||s.y<-40||s.y>H+40){ resetChain(); return false; } return true; });
+    bugs=bugs.filter(b=>!b.dead);
+    parts.forEach(p=>{p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;}); parts=parts.filter(p=>p.life>0);
+    pulses.forEach(p=>{ p.u=(p.u+dt*p.sp)%1; });
+    if(!gameOver && waveKills>=waveNeed){ waveKills=0; level++; waveNeed=8+level; genWorld(); }
+    flash=Math.max(0,flash-dt*3); bombFx=Math.max(0,bombFx-dt*1.5);
+  }
 
   // ================= render =================
-  ctx.fillStyle="#000";ctx.fillRect(0,0,W,H);
-  // vanishing core glow
-  const vg=ctx.createRadialGradient(VPX,HORIZON,2,VPX,HORIZON,190);
-  vg.addColorStop(0,"#0a2a3a"); vg.addColorStop(.4,PAL.web+"2a"); vg.addColorStop(1,"#0000");
-  ctx.fillStyle=vg; ctx.fillRect(VPX-190,HORIZON-140,380,260);
+  // Game logic stays in 900x640; this maps that space onto the HiDPI backing store.
+  ctx.setTransform(scaleX,0,0,scaleY,0,0);
+  if(sceneryDirty) buildScenery();
+  // Blit cached glow layer in device pixels (identity), then restore logical transform.
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.drawImage(scenery,0,0);
+  ctx.setTransform(scaleX,0,0,scaleY,0,0);
 
-  // ---- towers: translucent additive boxes, far → near ----
-  towers.forEach(tw=>{
-    const side=tw.side, fog=Math.max(.25,tw.t);          // depth fog factor
-    const t2=Math.max(.05,tw.t-tw.d);
-    const nL=P(tw.lat-tw.w/2,tw.t), nR=P(tw.lat+tw.w/2,tw.t);
-    const fL=P(tw.lat-tw.w/2,t2),   fR=P(tw.lat+tw.w/2,t2);
-    const wdt=nR.x-nL.x; if(wdt<3) return;
-    const gy=nL.y, topY=gy-tw.h*nL.s;
-    const gyF=fL.y, topYF=gyF-tw.h*fL.s;
-    const innerNear= side===-1? nR:nL, innerFar= side===-1? fR:fL;
-
-    // front face: dark translucent teal fill
-    let fg=ctx.createLinearGradient(0,topY,0,gy);
-    fg.addColorStop(0,towerCol(PAL.web,.34*fog)); fg.addColorStop(1,towerCol("#061520",.55*fog));
-    ctx.fillStyle=fg; ctx.fillRect(nL.x,topY,wdt,gy-topY);
-    // text texture, additive
-    ctx.globalCompositeOperation="lighter";
-    ctx.globalAlpha=.75*fog;
-    ctx.drawImage(tw.tex, nL.x, topY, wdt, gy-topY);
-    ctx.globalAlpha=1; ctx.globalCompositeOperation="source-over";
-    // wireframe sub-panels on the face
-    ctx.strokeStyle=towerCol(PAL.text,.5*fog); ctx.lineWidth=1;
-    for(let pI=0;pI<2;pI++){
-      const px=nL.x+wdt*(.12+pI*.45), pw2=wdt*.3, py=topY+(gy-topY)*(.08+pI*.4), ph2=(gy-topY)*.18;
-      ctx.globalAlpha=.5*fog; ctx.strokeRect(px,py,pw2,ph2);
-    }
-    ctx.globalAlpha=1;
-    // bright silhouette edges (white-hot)
-    ctx.globalCompositeOperation="lighter";
-    ctx.strokeStyle=PAL.text; ctx.lineWidth=Math.max(.6,2.2*nL.s); ctx.globalAlpha=.9*fog;
-    ctx.shadowColor=PAL.web; ctx.shadowBlur=8*nL.s;
-    ctx.strokeRect(nL.x,topY,wdt,gy-topY);
-    ctx.beginPath(); ctx.moveTo(innerNear.x,gy); ctx.lineTo(innerNear.x,topY); ctx.stroke();
-    // top face sliver (read as the box's top plane)
-    ctx.beginPath();
-    ctx.moveTo(nL.x,topY); ctx.lineTo(nR.x,topY); ctx.lineTo(fR.x,topYF); ctx.lineTo(fL.x,topYF);
-    ctx.closePath();
-    ctx.fillStyle=towerCol(PAL.text,.16*fog); ctx.fill();
-    // side face (facing corridor): translucent, with slot lines
-    ctx.beginPath();
-    ctx.moveTo(innerNear.x,gy); ctx.lineTo(innerNear.x,topY);
-    ctx.lineTo(innerFar.x,topYF); ctx.lineTo(innerFar.x,gyF);
-    ctx.closePath();
-    ctx.fillStyle=towerCol(PAL.web,.24*fog); ctx.fill();
-    ctx.strokeStyle=towerCol(PAL.web,.5*fog); ctx.lineWidth=1;
-    for(let sI=1;sI<6;sI++){ const f=sI/6;
-      ctx.beginPath();
-      ctx.moveTo(innerNear.x, topY+(gy-topY)*f);
-      ctx.lineTo(innerFar.x, topYF+(gyF-topYF)*f);
-      ctx.stroke();
-    }
-    // base flare on the floor
-    const bf=ctx.createRadialGradient(innerNear.x,gy,1,innerNear.x,gy,wdt*1.4);
-    bf.addColorStop(0,PAL.web+"66"); bf.addColorStop(1,"#0000");
-    ctx.globalAlpha=.8*fog; ctx.fillStyle=bf;
-    ctx.beginPath(); ctx.ellipse(innerNear.x,gy,wdt*1.4,wdt*.22,0,0,7); ctx.fill();
-    ctx.globalAlpha=1; ctx.shadowBlur=0; ctx.globalCompositeOperation="source-over";
-  });
-
-  // ---- floor: bundled bus traces ----
   ctx.globalCompositeOperation="lighter";
-  traces.forEach((tr,i)=>{
-    const pts=tr.pts.map(p=>P(p[0],p[1]));
-    // outer soft stroke
-    ctx.strokeStyle=tr.bus? PAL.web : PAL.trace; ctx.globalAlpha=.22; ctx.lineWidth=4;
-    ctx.shadowColor=ctx.strokeStyle; ctx.shadowBlur=9;
-    ctx.beginPath(); pts.forEach((p,k)=>k===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y)); ctx.stroke();
-    // bright core
-    ctx.globalAlpha=.85; ctx.lineWidth=1.3; ctx.strokeStyle="#bfefff";
-    ctx.beginPath(); pts.forEach((p,k)=>k===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y)); ctx.stroke();
-    ctx.shadowBlur=0; ctx.globalAlpha=1;
-    const q=tracePoint(i,pulses[i].u);
-    ctx.fillStyle=PAL.pad; ctx.shadowColor=PAL.pad; ctx.shadowBlur=10;
+  pulses.forEach((p,i)=>{
+    const q=tracePoint(i,p.u);
+    ctx.fillStyle=PAL.pad; ctx.shadowColor=PAL.pad;
+    ctx.shadowBlur=q.s>0.6?10:0; // far pulses are 2px dots; blur does not read
     ctx.beginPath(); ctx.arc(q.x,q.y,2.4*q.s+.6,0,7); ctx.fill(); ctx.shadowBlur=0;
   });
   ctx.globalCompositeOperation="source-over";
 
-  // lane guides
-  ctx.strokeStyle=PAL.web; ctx.lineWidth=1;
-  for(let i=0;i<N;i++){ const lat=(i-(N-1)/2)*LANE_SP;
-    const a=P(lat,.02), b2=P(lat,1);
-    ctx.globalAlpha=.15; ctx.setLineDash([4,9]);
-    ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b2.x,b2.y); ctx.stroke();
-  }
-  ctx.setLineDash([]); ctx.globalAlpha=1;
-
-  // bugs + patches
-  bugs.slice().sort((a,b)=>a.t-b.t).forEach(b=>drawBug(b.x,b.y,(.45+b.t*1.05)*b.s*1.9,b.type,t+b.ph,PAL.bug[b.type]));
-  patches.slice().sort((a,b)=>a.t-b.t).forEach(p=>drawPatch(p.x,p.y,p.s*1.9,p.type));
-  // laser bolts
+  // sort in place: painter's algorithm, skip the per-frame slice() allocation
+  bugs.sort((a,b)=>a.t-b.t).forEach(b=>drawBug(b.x,b.y,(.45+b.t*1.05)*b.s*1.9,b.type,t+b.ph,PAL.bug[b.type]));
+  patches.sort((a,b)=>a.t-b.t).forEach(p=>drawPatch(p.x,p.y,p.s*1.9,p.type));
+  // laser bolts: keep the tail gradient, drop shadowBlur (additive + a wide under-stroke is the glow)
   ctx.globalCompositeOperation="lighter";
-  shots.forEach(s=>{ const g=ctx.createLinearGradient(s.x-s.vx*.03,s.y-s.vy*.03,s.x,s.y);
-    g.addColorStop(0,PAL.pad+"00"); g.addColorStop(1,"#eaffff");
-    ctx.strokeStyle=g; ctx.shadowColor=PAL.text; ctx.shadowBlur=14; ctx.lineWidth=2.8;
+  shots.forEach(s=>{
+    ctx.strokeStyle=PAL.pad; ctx.globalAlpha=.4; ctx.lineWidth=5.5;
     ctx.beginPath(); ctx.moveTo(s.x-s.vx*.035,s.y-s.vy*.035); ctx.lineTo(s.x,s.y); ctx.stroke();
-    ctx.shadowBlur=0; });
+    const g=ctx.createLinearGradient(s.x-s.vx*.03,s.y-s.vy*.03,s.x,s.y);
+    g.addColorStop(0,PAL.pad+"00"); g.addColorStop(1,"#eaffff");
+    ctx.globalAlpha=1; ctx.strokeStyle=g; ctx.lineWidth=2.8;
+    ctx.beginPath(); ctx.moveTo(s.x-s.vx*.035,s.y-s.vy*.035); ctx.lineTo(s.x,s.y); ctx.stroke();
+  });
   parts.forEach(p=>{ctx.globalAlpha=p.life*2;ctx.fillStyle=p.col;ctx.fillRect(p.x-1.5,p.y-1.5,3,3);});
   ctx.globalAlpha=1; ctx.globalCompositeOperation="source-over";
   drawPCBCannon(cannonScreen.x,cannonScreen.y);
-  ctx.strokeStyle=PAL.text;ctx.shadowColor=PAL.text;ctx.shadowBlur=8;ctx.lineWidth=1.2;
-  ctx.beginPath();ctx.arc(mouse.x,mouse.y,9,0,7);ctx.stroke();
-  ctx.beginPath();ctx.moveTo(mouse.x-14,mouse.y);ctx.lineTo(mouse.x-5,mouse.y);
-  ctx.moveTo(mouse.x+5,mouse.y);ctx.lineTo(mouse.x+14,mouse.y);
-  ctx.moveTo(mouse.x,mouse.y-14);ctx.lineTo(mouse.x,mouse.y-5);
-  ctx.moveTo(mouse.x,mouse.y+5);ctx.lineTo(mouse.x,mouse.y+14);ctx.stroke();
-  ctx.shadowBlur=0;
+  if(started && !gameOver){
+    ctx.strokeStyle=PAL.text;ctx.shadowColor=PAL.text;ctx.shadowBlur=6;ctx.lineWidth=1.2;
+    ctx.beginPath();ctx.arc(mouse.x,mouse.y,9,0,7);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(mouse.x-14,mouse.y);ctx.lineTo(mouse.x-5,mouse.y);
+    ctx.moveTo(mouse.x+5,mouse.y);ctx.lineTo(mouse.x+14,mouse.y);
+    ctx.moveTo(mouse.x,mouse.y-14);ctx.lineTo(mouse.x,mouse.y-5);
+    ctx.moveTo(mouse.x,mouse.y+5);ctx.lineTo(mouse.x,mouse.y+14);ctx.stroke();
+    ctx.shadowBlur=0;
+  }
   if(bombFx>0){ctx.globalAlpha=bombFx*.35;ctx.fillStyle=PAL.pad;ctx.fillRect(0,0,W,H);ctx.globalAlpha=1;}
   if(flash>0){ctx.globalAlpha=flash*.3;ctx.fillStyle="#ff2244";ctx.fillRect(0,0,W,H);ctx.globalAlpha=1;}
   if(gameOver){
@@ -514,18 +619,21 @@ function loop(now){
         ctx.fillText(`${String(i+1).padStart(2," ")}  ${r.i.padEnd(3,".")}  ${String(r.s).padStart(7," ")}  L${String(r.l).padStart(2," ")}`,CX-90,H*.46+i*18);
       });
       ctx.fillStyle=PAL.web; ctx.font="10px monospace";
-      ctx.fillText("CLICK OR ENTER TO RESTART",CX,H*.46+hs.length*18+14);
+      ctx.fillText("CLICK OR ENTER TO CONTINUE",CX,H*.46+hs.length*18+14);
     }
     ctx.textAlign="left";
   }
+  if(!started) drawStartOverlay(t);
 
   const fx=[slowT>0?`SLOW ${Math.round((1-slowFactor)*100)}% ${slowT.toFixed(0)}s`:null,
             rapidT>0?"RAPID "+rapidT.toFixed(0)+"s":null, shield?"SHIELD":""].filter(Boolean).join(" ");
-  document.getElementById("hud").textContent=
+  const hudStr=
     `SCORE ${score}  ·  COMBO x${mult()} (${combo})  ·  STREAK ${streak}/bomb @${nextStreak}`+
     `  ·  BOMBS ${"●".repeat(bombs)}  ·  LIVES ${"●".repeat(Math.max(0,lives))}`+
     (fx?`  ·  ${fx}`:"")+
     `  ·  LEVEL ${level} (${waveKills}/${waveNeed})  ·  ${muted?"MUTED":"SND ON [M]"}`;
+  // Only touch the HUD DOM when the string actually changed (avoids layout every frame).
+  if(hudStr!==lastHud){ lastHud=hudStr; hudEl.textContent=hudStr; }
   if(!window.PHOTO) requestAnimationFrame(loop);
 }
 // photo mode for documentation screenshots (?photo)
@@ -533,7 +641,7 @@ if(location.search.includes("photo")){
   // bare frame: hide page chrome so the canvas fills the window exactly
   document.body.style.padding="0";
   ["h1",".sub","#pals","#hud"].forEach(s=>document.querySelectorAll(s).forEach(e=>e.style.display="none"));
-  var cannonYOff=-42; // lift cannon into frame for the shot
+  cannonYOff=-42; // lift cannon into frame for the shot
   spawnT=99999; patchT=99999;
   [["rootkit",.45,3],["voltworm",.62,4],["tanglebug",.78,3],["hive",.9,5],
    ["rootkit",.3,6],["voltworm",.5,7],["tanglebug",.66,1]].forEach((d,i)=>{
@@ -545,10 +653,16 @@ if(location.search.includes("photo")){
   shots.push({x:CX,y:H*.72,px:CX-5,py:H*.76,vx:0,vy:-1500});
   // deterministic capture: run a few simulation frames synchronously, then freeze
   window.PHOTO=true;
+  started=true; // skip the title overlay so the capture is a full in-game frame
+  fitCanvas();
   setTimeout(function(){ last=performance.now();
     for(var i=0;i<10;i++) loop(last+i*16.7); }, 300);
 }
-if(!location.search.includes("photo")) requestAnimationFrame(loop);
+if(!location.search.includes("photo")){
+  bindResize();
+  fitCanvas();
+  requestAnimationFrame(loop);
+}
 </script>
 </body>
 </html>
