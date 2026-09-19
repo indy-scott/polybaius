@@ -296,8 +296,8 @@ function drawPCBCannon(x,y){
   ctx.beginPath();ctx.arc(0,2,6.5,0,7);ctx.stroke();
   ctx.beginPath();ctx.arc(0,2,2,0,7);ctx.fillStyle=AC;ctx.fill();
   ctx.strokeStyle=A;ctx.lineWidth=4;
-  ctx.beginPath();ctx.moveTo(0,-12);ctx.lineTo(0,-34);ctx.stroke();
-  ctx.fillStyle=A;ctx.fillRect(-4,-40,8,8);
+  ctx.beginPath();ctx.moveTo(0,-12);ctx.lineTo(0,-24);ctx.stroke();
+  ctx.fillStyle=A;ctx.fillRect(-3.5,-29,7,7);
   ctx.restore();
 }
 function boom(x,y,col,n){ for(let i=0;i<(n||10);i++) parts.push({x,y,vx:(Math.random()-.5)*180,vy:(Math.random()-.5)*180,life:.5,col}); }
@@ -311,10 +311,10 @@ cv.addEventListener("mousemove",e=>{
 cv.addEventListener("mousedown",e=>{
   if(gameOver){ if(overPhase==="table") resetGame(); return; }
   if(e.button===0){
-    const dx=mouse.x-cannonScreen.x, dy=mouse.y-(cannonScreen.y-24), m=Math.hypot(dx,dy)||1;
+    const dx=mouse.x-cannonScreen.x, dy=mouse.y-(cannonScreen.y-18), m=Math.hypot(dx,dy)||1;
     const angles= rapidT>0 ? [-.12,0,.12] : [0];
     angles.forEach(a=>{ const ca=Math.cos(a),sa=Math.sin(a);
-      shots.push({x:cannonScreen.x,y:cannonScreen.y-24,px:cannonScreen.x,py:cannonScreen.y-24,
+      shots.push({x:cannonScreen.x,y:cannonScreen.y-18,px:cannonScreen.x,py:cannonScreen.y-18,
         vx:(dx*ca-dy*sa)/m*1500, vy:(dx*sa+dy*ca)/m*1500}); });
     sfx.laser();
   }
