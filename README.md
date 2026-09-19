@@ -11,8 +11,10 @@ past the rim.
 
 ![Gameplay — the Gibson corridor](assets/gameplay.png)
 
-> Play it: open `samples/corridor-sample-v5.html` in any browser, or serve the
-> repo statically (`python3 -m http.server 8080`). No build step, no backend.
+> Play it: open `samples/corridor-sample-v5.html` in any browser and click
+> **START** — or serve the repo statically (`python3 -m http.server 8080`).
+> No build step, no backend. The board letterboxes to fit any window and
+> renders at native device resolution (crisp on large/high-DPI screens).
 
 ## Status
 
@@ -115,6 +117,7 @@ No WebGL.
 | Input | Action |
 |---|---|
 | Mouse move | slide the cannon / aim |
+| Click **START** (or Enter/Space) | begin the game |
 | Left click | fire laser |
 | Right click | bomb |
 | M | mute (WebAudio procedural SFX) |
@@ -150,8 +153,8 @@ scotthepburn.com pattern:
 
 ## Versioning
 
-Semantic versioning; see [CHANGELOG.md](CHANGELOG.md). Current: **v0.1.1**
-(pre-production prototype, visual direction locked, README documented).
+Semantic versioning; see [CHANGELOG.md](CHANGELOG.md). Current: **v0.1.2**
+(start overlay, adaptive HiDPI scaling, render-loop optimization; QA-verified).
 
 ## Roadmap
 

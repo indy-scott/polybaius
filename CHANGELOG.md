@@ -46,6 +46,28 @@ Documentation release.
 ### Fixed
 - v5 photo mode: laser bolt origin follows the shortened muzzle.
 
+## [0.1.2] — 2026-09-19
+
+Prototype polish release (dev profile implementation, qa profile verification —
+QA verdict: PASS, 8/8 items, no defects).
+
+### Added
+- Arcade start overlay: the game no longer simulates on page load; starts on
+  click or Enter/Space; after game over + high-score entry it returns to the
+  title screen (input cooldown prevents accidental instant restart).
+- Letterboxed fit-to-viewport scaling: 900x640 aspect preserved and centered
+  on any window size — the board is never cut off.
+- Device-resolution backing store (CSS size x devicePixelRatio, capped at
+  ~2560px wide) with a logical 900x640 coordinate space — crisp graphics on
+  large/high-DPI displays instead of upscaled blur. Live resize handling.
+
+### Changed
+- Render-loop efficiency: corridor scenery (towers, floor traces, lane glow)
+  baked once per level/palette/resize to an offscreen canvas and blitted;
+  trace points pre-projected; shadowBlur restricted to near sprites and
+  replaced with additive under-strokes on lasers; HUD DOM writes gated on
+  string change; in-place draws instead of per-frame array slices.
+
 [0.1.1]: https://github.com/indy-scott/polybaius/releases/tag/v0.1.1
 [0.1.0]: https://github.com/indy-scott/polybaius/releases/tag/v0.1.0
 
