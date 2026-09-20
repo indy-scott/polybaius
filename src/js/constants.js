@@ -104,6 +104,8 @@ export const DIFF = {
   MIX_VOLT: 40,
   MIX_TANGLE: 80,
   MIX_HIVE: 180,
+  LIFE_INTERVAL: 75000, // D13: extra life every 75k points
+  LIVES_CAP: 6,         // D13: max lives in reserve
 
   START_MIN: 1,
   START_MAX: 8,
@@ -131,9 +133,9 @@ export function waveNeedFor(level) {
 }
 
 export function mixCount(kills) {
-  if (kills > DIFF.MIX_HIVE) return 4;
-  if (kills > DIFF.MIX_TANGLE) return 3;
-  if (kills > DIFF.MIX_VOLT) return 2;
+  if (kills >= DIFF.MIX_HIVE) return 4;   // QA DEFECT-2: inclusive thresholds match the documented "@40/@80/@180"
+  if (kills >= DIFF.MIX_TANGLE) return 3;
+  if (kills >= DIFF.MIX_VOLT) return 2;
   return 1;
 }
 

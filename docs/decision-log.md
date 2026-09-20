@@ -101,6 +101,7 @@ Tempest.
 ## D13. Extra lives — DECIDED
 
 **Score intervals:** one extra life every 75,000 points, maximum 6 in reserve.
+Implemented in the 0.2.0 build (`DIFF.LIFE_INTERVAL` / `DIFF.LIVES_CAP`).
 
 ## D15. Power-ups — DECIDED (amended)
 
@@ -169,7 +170,13 @@ Plain static site, no bundler, no framework. Git + Forgejo remote optional
 (init6/homelab). Lint via `npx eslint` optional later; no CI needed until tests
 exist.
 
-## D8. Enemy visual design — OPEN (see samples/style-samples.html gallery)
+## D8. Enemy visual design — DECIDED (implemented)
+
+**Neon wireframe bugs with color-filled body sections and a dark underlay
+halo** — as shipped in the production build (see `src/js/entities.js`):
+rootkit chevrons filled, voltworm membrane fill + solid core, tanglebug solid
+white core, hive translucent rhombus fill; dark silhouette underlay pass for
+contrast against bright tower faces.
 
 - **A. Neon wireframe bugs** — articulated glowing line-art creatures (most
   Tempest-faithful).

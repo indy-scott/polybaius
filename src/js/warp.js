@@ -23,7 +23,7 @@ export function enterWarp(s) {
   s.phase = "warp";
   s.bugs = [];
   s.patches = [];
-  const n = Math.min(DIFF.WARP_TRACE_MAX, DIFF.WARP_TRACE_MIN + s.level * DIFF.WARP_TRACE_PER_LEVEL);
+  const n = Math.min(DIFF.WARP_TRACE_MAX, DIFF.WARP_TRACE_MIN + (s.level - 1) * DIFF.WARP_TRACE_PER_LEVEL); // QA DEFECT-3: level 1 realizes WARP_TRACE_MIN
   const traces = [];
   let lane = Math.floor(Math.random() * N);
   for (let i = 0; i < n; i++) {

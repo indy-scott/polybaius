@@ -15,6 +15,7 @@ import { enterWarp, tickWarp, completeWarp, hitWarpTrace, bombWarpTraces } from 
 export const state = {
   bugs: [], shots: [], parts: [], patches: [],
   score: 0, combo: 0, streak: 0, bombs: 3, lives: 3,
+  nextLifeAt: DIFF.LIFE_INTERVAL, // D13: extra life every 75k, capped
   level: 1, waveKills: 0, waveNeed: 8, totalKills: 0,
   spawnT: 2.4, patchT: 9,
   mouse: { x: CX, y: FLOOR - 164 },
@@ -74,6 +75,7 @@ export function resetGame() {
   s.score = 0; s.combo = 0; s.streak = 0; s.bombs = 3; s.lives = 3;
   s.slowT = 0; s.slowFactor = 1; s.rapidT = 0;
   s.shield = false; s.gameOver = false; s.nextStreak = 15;
+  s.nextLifeAt = DIFF.LIFE_INTERVAL; // D13
   s.phase = "play"; s.warp = null;
   applyStartLevel(s.startLevel || 1);
   // Rest the title HUD; beginPlay re-applies the chosen start level.
@@ -97,6 +99,7 @@ export function returnToTitle() {
 
 export function beginGameOver() {
   state.gameOver = true;
+  state.phase = "play"; state.warp = null; // QA DEFECT-1: no residual warp state after a lethal warp hit
   state.overPhase = qualifies(state.score) ? "entry" : "table";
   state.entryBuf = "";
 }
@@ -189,6 +192,10 @@ export function tick(dt, now) {
   }
 
   if (s.started && !s.gameOver) {
+    while (s.score >= s.nextLifeAt) { // D13: extra life every 75k, capped at 6 in reserve
+      if (s.lives < DIFF.LIVES_CAP) s.lives++;
+      s.nextLifeAt += DIFF.LIFE_INTERVAL;
+    }
     s.spawnT -= dt; if (s.spawnT <= 0) {
       s.spawnT = spawnInterval(s.totalKills);
       const lane = Math.floor(Math.random() * N);

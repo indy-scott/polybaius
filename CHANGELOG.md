@@ -68,6 +68,31 @@ Gameplay features from the README roadmap (warp, skill-step, difficulty curve).
   compounding, hard cap around 13 minutes matching the previous late-game
   bite. Projected time-to-death for a solid player is 15-25 minutes.
 
+## [0.2.0] — 2026-09-19
+
+Feature release: the production build in `src/` is now feature-complete per the
+design brief. Dev profile implementation, QA profile verification
+(overall SHIP; 7 minor findings, 4 fixed in this release).
+
+### Added
+- **Level warp sequence + corrupted-trace dodge** (`src/js/warp.js`): clearing a
+  wave triggers a 3.5s fly-in toward ZOD's core; corrupted-trace blocks must be
+  dodged (steer) or shot (50 pts, no combo); a hit costs a life (SHLD absorbs);
+  core arrival advances the level and re-rolls the corridor.
+- **Skill-Step starting level**: `START LEVEL: N` (1-8) on the title screen,
+  adjusted with A/D or arrows; seeds the difficulty baseline via
+  `DIFF.START_KILLS` (wave quota `8+(level-1)*3`).
+- **Difficulty tuning** consolidated into a documented `DIFF` object: calm
+  first ~2 minutes (speed .048, 2.4s spawns), compounding pressure, hard cap
+  (speed .360 / 0.50s spawns at ~567 kills ≈ 13.3 min) — modeled time-to-death
+  in the 15-25 minute band.
+- **Extra life every 75,000 points** (D13, previously deferred), capped at 6.
+
+### Fixed (QA findings)
+- Residual warp state after a lethal warp hit (game-over state machine cleanup).
+- Bug-mix thresholds now inclusive (match the documented 40/80/180 kill marks).
+- Warp trace count realizes `WARP_TRACE_MIN` at level 1.
+
 ## [0.1.2] — 2026-09-19
 
 Prototype polish release (dev profile implementation, qa profile verification —
