@@ -68,6 +68,26 @@ Gameplay features from the README roadmap (warp, skill-step, difficulty curve).
   compounding, hard cap around 13 minutes matching the previous late-game
   bite. Projected time-to-death for a solid player is 15-25 minutes.
 
+## [0.2.1] — 2026-09-19
+
+Deployment release (production build served from the homelab).
+
+### Added
+- Game deployed to docker-prod: `src/` synced to the caddy data volume and
+  served by the existing Caddy instance as `polybaius.endofline.io`
+  (file_server, plain HTTP behind the cloudflared tunnel).
+- Public DNS record `polybaius.endofline.io` (CNAME → tunnel, proxied) created
+  via the Cloudflare API.
+
+### Notes
+- Caddy reconfiguration briefly interrupted tunnel-served sites (matrix,
+  resume) while the config was being restored from backup; all vhosts were
+  verified healthy after (resume 200, matrix 200, arcane 200, gopodder 303,
+  status 302). Backups kept at `Caddyfile.bak-polybaius` on docker-prod.
+- Remaining: one ingress rule in the Zero Trust dashboard to route
+  `polybaius.endofline.io` through the tunnel (needs an account-scoped token
+  we don't hold).
+
 ## [0.2.0] — 2026-09-19
 
 Feature release: the production build in `src/` is now feature-complete per the
@@ -115,6 +135,8 @@ QA verdict: PASS, 8/8 items, no defects).
   replaced with additive under-strokes on lasers; HUD DOM writes gated on
   string change; in-place draws instead of per-frame array slices.
 
+[0.2.1]: https://github.com/indy-scott/polybaius/releases/tag/v0.2.1
+[0.2.0]: https://github.com/indy-scott/polybaius/releases/tag/v0.2.0
 [0.1.2]: https://github.com/indy-scott/polybaius/releases/tag/v0.1.2
 [0.1.1]: https://github.com/indy-scott/polybaius/releases/tag/v0.1.1
 [0.1.0]: https://github.com/indy-scott/polybaius/releases/tag/v0.1.0

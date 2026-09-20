@@ -171,8 +171,8 @@ scotthepburn.com pattern:
 
 ## Versioning
 
-Semantic versioning; see [CHANGELOG.md](CHANGELOG.md). Current: **v0.1.3**
-(warp sequence, skill-step start level, difficulty curve).
+Semantic versioning; see [CHANGELOG.md](CHANGELOG.md). Current: **v0.2.0**
+(warp sequence, skill-step start level, tuned difficulty curve, QA fixes).
 
 ## Roadmap
 
@@ -180,4 +180,8 @@ Semantic versioning; see [CHANGELOG.md](CHANGELOG.md). Current: **v0.1.3**
 - [x] Level warp sequence + corrupted-trace dodge
 - [x] Skill-Step starting level
 - [x] Difficulty curve tuning for 15-25 minute runs
-- [ ] Caddy stack deploy + Cloudflare tunnel hostname
+- [x] Caddy deploy on docker-prod (`polybaius.endofline.io` served via file_server)
+- [ ] Cloudflare tunnel public hostname — DNS CNAME created; needs the ingress
+      rule added in the Zero Trust dashboard (Tunnels → caddy tunnel → Public
+      Hostname: `polybaius.endofline.io` → `HTTP://localhost:80`), which
+      requires an account-scoped API token we don't hold
