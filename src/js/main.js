@@ -4,13 +4,14 @@
 // browser fetches each .js by URL. No bundler (D7). Serve over http://
 // (python3 -m http.server) — file:// blocks module loads.
 
-import { W, H, CX, PATCH_TYPES } from "./constants.js";
-import { PALETTES, setPalette } from "./palettes.js";
+import { W, H, CX, PATCH_TYPES, rampSpeed, spawnInterval, waveNeedFor, mixCount, killsForStartLevel } from "./constants.js";
+import { PALETTES, setPalette, hueShift } from "./palettes.js";
 import { toggleMute } from "./audio.js";
 import { saveScore } from "./hiscores.js";
-import { view, fitCanvas, bindResize } from "./world.js";
+import { view, fitCanvas, bindResize, worldGen } from "./world.js";
 import {
   state, beginPlay, returnToTitle, fireLaser, dropBomb, tick,
+  adjustStartLevel, applyStartLevel, startWarp, finishWarp, DIFF,
 } from "./game.js";
 import { drawFrame, hudString } from "./render.js";
 
@@ -49,7 +50,9 @@ addEventListener("keydown", e => {
   if (e.code === "KeyM") toggleMute();
   if (!state.started) {
     if (state.titleCool > 0) return;
-    if (e.code === "Enter" || e.code === "Space") { e.preventDefault(); beginPlay(); }
+    if (e.code === "Enter" || e.code === "Space") { e.preventDefault(); beginPlay(); return; }
+    if (e.code === "ArrowLeft" || e.code === "KeyA") { e.preventDefault(); adjustStartLevel(-1); }
+    if (e.code === "ArrowRight" || e.code === "KeyD") { e.preventDefault(); adjustStartLevel(1); }
     return;
   }
   if (state.gameOver && state.overPhase === "entry") {
@@ -75,7 +78,13 @@ function loop(now) {
 }
 
 // Probe surface for headless checks (v5 hung these on the window as globals).
-window.PolybAIus = { state, view, beginPlay, returnToTitle, fireLaser, dropBomb };
+window.PolybAIus = {
+  state, view, beginPlay, returnToTitle, fireLaser, dropBomb, tick, drawFrame,
+  adjustStartLevel, applyStartLevel, enterWarp: startWarp, completeWarp: finishWarp, DIFF,
+  rampSpeed, spawnInterval, waveNeedFor, mixCount, killsForStartLevel,
+  get hueShift() { return hueShift; },
+  get worldGen() { return worldGen; },
+};
 
 if (location.search.includes("photo")) {
   document.body.style.padding = "0";

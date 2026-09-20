@@ -10,6 +10,8 @@ export const view = { scaleX: 1, scaleY: 1, sceneryDirty: true };
 export let towers = [];
 export let traces = [];
 export let pulses = [];
+// Bumped in genWorld so tests can see a warp-to-core actually re-rolled the corridor.
+export let worldGen = 0;
 
 export function persp(t) { return 1 / (1 + (1 - t) * 2.2); } // t 0(far)..1(near) → .31..1
 export function P(lat, t) {
@@ -72,6 +74,7 @@ function bakeTrace(tr) {
 }
 
 export function genWorld() {
+  worldGen++;
   towers = []; traces = []; pulses = [];
   const depths = [.06, .16, .27, .4, .55, .72, .9, 1];
   for (const side of [-1, 1]) {

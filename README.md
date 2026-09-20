@@ -33,8 +33,16 @@ Core loop (Tempest mechanics, Gibson presentation):
 - **No bug may reach the bottom** — a breach costs a life (3 to start; game over
   at zero).
 - Enemy speed starts slow and ramps gradually with total kills (smooth, capped)
-  so early play is comfortable and pressure builds late — a good run should
-  last 15–25 minutes.
+  so the first ~2 minutes are calm and pressure compounds through mid-game,
+  then hard-caps late. A good run should last 15-25 minutes. Tuning lives in
+  one `DIFF` object in `src/js/constants.js`.
+- After a wave's quota is cleared, a **warp to ZOD's core** (~3.5s): steer
+  around corrupted traces on the lanes (or shoot them for 50 points). A hit
+  costs a life; SHLD still absorbs one. Reaching the core re-rolls the
+  corridor and advances the level.
+- **Skill-Step:** on the title screen, A/D or arrow keys pick start level 1-8.
+  Starting at N seeds that level's difficulty baseline (spawn, speed, mix,
+  wave quota) on the same curve. Score-per-kill is unchanged.
 
 ### Enemies (Tempest roles, hacker names)
 
@@ -67,12 +75,14 @@ that lands un-shot fizzles with no effect.
    down one of 8 lanes toward your cannon. Anything that reaches the bottom
    costs a life — you have 3, and there are no continues.
 2. **Ramp.** Enemy speed and spawn rate start gentle and rise smoothly with
-   your total kill count (hard-capped), so the first minute is calm and the
-   pressure compounds over time. Bug variety widens as you rack up kills
-   (Tanglebugs after 12, Hives after 30).
-3. **Waves & levels.** Clearing a wave's quota of bugs advances the level;
-   each level re-rolls the corridor — new tower heights, a shifted color
-   scheme, and fresh tower text — and raises the wave quota.
+   your total kill count (hard-capped), so the first ~2 minutes are calm and
+   the pressure compounds over time. Bug variety widens as you rack up kills
+   (Voltworms after 40, Tanglebugs after 80, Hives after 180).
+3. **Waves, warp, levels.** Clearing a wave's quota starts a warp down the
+   corridor toward ZOD's core. Corrupted traces sit on lanes: steer to dodge
+   or shoot them for 50 points. Hitting one costs a life (SHLD absorbs one);
+   the warp keeps going. Reaching the core re-rolls the corridor (tower
+   heights, hue, text) and raises the next wave quota.
 4. **Patches.** Floppy disks drift down occasionally. Shoot them to collect;
    a disk that lands un-shot is wasted. Tiers trade risk for power: the
    slow-drifting green S1 is easy to hit but only slows viruses 25%, while
@@ -120,6 +130,7 @@ No WebGL.
 |---|---|
 | Mouse move | slide the cannon / aim |
 | Click **START** (or Enter/Space) | begin the game |
+| A / D or arrow keys | pick start level 1-8 (title screen only) |
 | Left click | fire laser |
 | Right click | bomb |
 | M | mute (WebAudio procedural SFX) |
@@ -160,13 +171,13 @@ scotthepburn.com pattern:
 
 ## Versioning
 
-Semantic versioning; see [CHANGELOG.md](CHANGELOG.md). Current: **v0.1.2**
-(start overlay, adaptive HiDPI scaling, render-loop optimization; QA-verified).
+Semantic versioning; see [CHANGELOG.md](CHANGELOG.md). Current: **v0.1.3**
+(warp sequence, skill-step start level, difficulty curve).
 
 ## Roadmap
 
 - [x] Production implementation in `src/` (modular: renderer, entities, waves, UI)
-- [ ] Level warp sequence + corrupted-trace dodge
-- [ ] Skill-Step starting level
-- [ ] Difficulty curve tuning for 15–25 minute runs
+- [x] Level warp sequence + corrupted-trace dodge
+- [x] Skill-Step starting level
+- [x] Difficulty curve tuning for 15-25 minute runs
 - [ ] Caddy stack deploy + Cloudflare tunnel hostname

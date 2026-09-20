@@ -30,4 +30,6 @@ export const sfx = {
   breach: () => beep(300, 60, .3, "square", .1),
   bombAward: () => beep(500, 1000, .15, "triangle", .08),
   patch: () => { beep(600, 1200, .1, "triangle", .08); setTimeout(() => beep(900, 1500, .1, "triangle", .07), 90); },
+  warp: () => beep(70, 420, .45, "sawtooth", .06),
+  traceShot: () => beep(160, 720, .1, "square", .05),
 };

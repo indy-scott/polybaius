@@ -46,6 +46,28 @@ Documentation release.
 ### Fixed
 - v5 photo mode: laser bolt origin follows the shortened muzzle.
 
+## [0.1.3] - 2026-09-19
+
+Gameplay features from the README roadmap (warp, skill-step, difficulty curve).
+
+### Added
+- Level warp sequence: clearing a wave quota flies the cannon toward ZOD's
+  core (~3.5s). Corrupted-trace blocks sit on lanes; steer to dodge or shoot
+  for 50 points. A hit costs a life (SHLD absorbs one); the warp continues.
+  Reaching the core re-rolls the corridor and advances the level. HUD shows
+  WARP TO CORE.
+- Skill-Step start level: title overlay shows START LEVEL 1-8, adjustable with
+  A/D or arrow keys. Enter/Space/M are unchanged. Starting at N seeds that
+  point on the difficulty curve (kills, spawn, speed, mix, wave quota).
+- `DIFF` config object in `src/js/constants.js`: ramp rate, spawn interval,
+  speed cap, wave quota growth, patch frequency, mix thresholds. New module
+  `src/js/warp.js`.
+
+### Changed
+- Difficulty reshape (not an easier ceiling): first ~2 minutes calm, mid-game
+  compounding, hard cap around 13 minutes matching the previous late-game
+  bite. Projected time-to-death for a solid player is 15-25 minutes.
+
 ## [0.1.2] — 2026-09-19
 
 Prototype polish release (dev profile implementation, qa profile verification —
@@ -68,6 +90,7 @@ QA verdict: PASS, 8/8 items, no defects).
   replaced with additive under-strokes on lasers; HUD DOM writes gated on
   string change; in-place draws instead of per-frame array slices.
 
+[0.1.2]: https://github.com/indy-scott/polybaius/releases/tag/v0.1.2
 [0.1.1]: https://github.com/indy-scott/polybaius/releases/tag/v0.1.1
 [0.1.0]: https://github.com/indy-scott/polybaius/releases/tag/v0.1.0
 

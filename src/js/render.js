@@ -7,6 +7,7 @@ import { getScores } from "./hiscores.js";
 import { view, blitScenery, pulses, tracePoint } from "./world.js";
 import { drawBug, drawPatch, drawPCBCannon } from "./entities.js";
 import { state, mult } from "./game.js";
+import { drawWarp } from "./warp.js";
 
 export function drawStartOverlay(ctx, t) {
   ctx.fillStyle = "rgba(0,4,10,.72)"; ctx.fillRect(0, 0, W, H);
@@ -24,8 +25,12 @@ export function drawStartOverlay(ctx, t) {
   ctx.globalAlpha = pulse; ctx.fillStyle = PAL.text; ctx.font = "14px monospace";
   ctx.fillText("CLICK TO START", CX, by + 27);
   ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+  ctx.font = "13px monospace"; ctx.fillStyle = PAL.text; ctx.shadowColor = PAL.web; ctx.shadowBlur = 10;
+  ctx.fillText("START LEVEL: " + (state.startLevel || 1), CX, H * .62);
+  ctx.shadowBlur = 0;
   ctx.font = "10px monospace"; ctx.fillStyle = PAL.web;
-  ctx.fillText("M MUTE  ·  LEFT LASER  ·  RIGHT BOMB", CX, H * .70);
+  ctx.fillText("A / D  OR  ARROWS  TO  SELECT  (1-8)", CX, H * .66);
+  ctx.fillText("M MUTE  ·  LEFT LASER  ·  RIGHT BOMB", CX, H * .72);
   ctx.textAlign = "left";
 }
 
@@ -69,6 +74,7 @@ export function hudString() {
   return `SCORE ${s.score}  ·  COMBO x${mult()} (${s.combo})  ·  STREAK ${s.streak}/bomb @${s.nextStreak}` +
     `  ·  BOMBS ${"●".repeat(s.bombs)}  ·  LIVES ${"●".repeat(Math.max(0, s.lives))}` +
     (fx ? `  ·  ${fx}` : "") +
+    (s.phase === "warp" ? "  ·  WARP TO CORE" : "") +
     `  ·  LEVEL ${s.level} (${s.waveKills}/${s.waveNeed})  ·  ${muted ? "MUTED" : "SND ON [M]"}`;
 }
 
@@ -87,8 +93,11 @@ export function drawFrame(ctx, cv, now) {
   });
   ctx.globalCompositeOperation = "source-over";
 
-  s.bugs.sort((a, b) => a.t - b.t).forEach(b => drawBug(ctx, b.x, b.y, (.45 + b.t * 1.05) * b.s * 1.9, b.type, t + b.ph, PAL.bug[b.type]));
-  s.patches.sort((a, b) => a.t - b.t).forEach(p => drawPatch(ctx, p.x, p.y, p.s * 1.9, p.type));
+  if (s.phase === "warp") drawWarp(ctx, s, now);
+  else {
+    s.bugs.sort((a, b) => a.t - b.t).forEach(b => drawBug(ctx, b.x, b.y, (.45 + b.t * 1.05) * b.s * 1.9, b.type, t + b.ph, PAL.bug[b.type]));
+    s.patches.sort((a, b) => a.t - b.t).forEach(p => drawPatch(ctx, p.x, p.y, p.s * 1.9, p.type));
+  }
 
   ctx.globalCompositeOperation = "lighter";
   s.shots.forEach(sh => {

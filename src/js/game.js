@@ -1,23 +1,29 @@
 // Game state, waves, combat, scoring (D4, D10, D11, D14, D15, D16).
-// Extra life at 75k (D13), hive split, silkworms, and warp are not in v5: deferred.
+// Extra life at 75k (D13), hive split, and silkworms remain deferred.
 
-import { W, H, CX, FLOOR, N, LANE_SP, MUZZLE_Y, BASE, PATCH_POOL, pick } from "./constants.js";
+import {
+  W, H, CX, FLOOR, N, LANE_SP, MUZZLE_Y, BASE, PATCH_POOL, pick,
+  DIFF, rampSpeed, spawnInterval, waveNeedFor, mixCount, nextPatchDelay,
+  killsForStartLevel, MIX_TYPES,
+} from "./constants.js";
 import { PAL } from "./palettes.js";
 import { audio, sfx } from "./audio.js";
 import { qualifies } from "./hiscores.js";
 import { P, genWorld, pulses } from "./world.js";
+import { enterWarp, tickWarp, completeWarp, hitWarpTrace, bombWarpTraces } from "./warp.js";
 
 export const state = {
   bugs: [], shots: [], parts: [], patches: [],
   score: 0, combo: 0, streak: 0, bombs: 3, lives: 3,
   level: 1, waveKills: 0, waveNeed: 8, totalKills: 0,
-  spawnT: 2.2, patchT: 9,
-  mouse: { x: CX, y: H - 170 },
+  spawnT: 2.4, patchT: 9,
+  mouse: { x: CX, y: FLOOR - 164 },
   flash: 0, bombFx: 0, nextStreak: 15, cannonLat: 0,
   slowT: 0, slowFactor: 1, rapidT: 0, shield: false,
   gameOver: false, started: false, titleCool: 0, cannonYOff: 0,
   cannonScreen: { x: CX, y: FLOOR + 10 },
   overPhase: "", entryBuf: "",
+  phase: "play", startLevel: 1, warp: null,
 };
 
 export function mult() { return Math.min(8, 1 + Math.floor(state.combo / 4)); }
@@ -45,24 +51,47 @@ export function applyPatch(type) {
   else if (type.id === "BMB") state.bombs = Math.min(9, state.bombs + 1);
 }
 
+export function applyStartLevel(n) {
+  const s = state;
+  const lvl = Math.max(DIFF.START_MIN, Math.min(DIFF.START_MAX, n | 0));
+  s.startLevel = lvl;
+  s.level = lvl;
+  s.totalKills = killsForStartLevel(lvl);
+  s.waveNeed = waveNeedFor(lvl);
+  s.waveKills = 0;
+  s.spawnT = spawnInterval(s.totalKills);
+}
+
+export function adjustStartLevel(delta) {
+  if (state.started) return;
+  const lvl = Math.max(DIFF.START_MIN, Math.min(DIFF.START_MAX, (state.startLevel || 1) + delta));
+  state.startLevel = lvl;
+}
+
 export function resetGame() {
   const s = state;
   s.bugs = []; s.shots = []; s.parts = []; s.patches = [];
   s.score = 0; s.combo = 0; s.streak = 0; s.bombs = 3; s.lives = 3;
-  s.level = 1; s.waveKills = 0; s.waveNeed = 8; s.totalKills = 0;
-  s.spawnT = 2.2; s.patchT = 9; s.slowT = 0; s.slowFactor = 1; s.rapidT = 0;
+  s.slowT = 0; s.slowFactor = 1; s.rapidT = 0;
   s.shield = false; s.gameOver = false; s.nextStreak = 15;
+  s.phase = "play"; s.warp = null;
+  applyStartLevel(s.startLevel || 1);
+  // Rest the title HUD; beginPlay re-applies the chosen start level.
+  if (!s.started) {
+    s.level = 1; s.totalKills = 0; s.waveNeed = waveNeedFor(1); s.spawnT = spawnInterval(0);
+  }
   genWorld();
 }
 
 export function beginPlay() {
+  applyStartLevel(state.startLevel || 1);
   state.started = true;
   try { audio().resume(); } catch (e) { /* autoplay policy */ }
 }
 
 export function returnToTitle() {
-  resetGame();
   state.started = false;
+  resetGame();
   state.titleCool = .35; // swallow the dismiss click so a double-click does not auto-start
 }
 
@@ -91,10 +120,47 @@ export function dropBomb() {
   const s = state;
   if (s.bombs <= 0) return;
   s.bombs--; s.bombFx = 1; sfx.bomb();
-  s.bugs.forEach(b => boom(b.x, b.y, PAL.bug[b.type], 6)); s.bugs = [];
+  if (s.phase === "warp") bombWarpTraces(s, boom);
+  else { s.bugs.forEach(b => boom(b.x, b.y, PAL.bug[b.type], 6)); s.bugs = []; }
 }
 
-function rampSpeed() { return (.065 + Math.min(.30, state.totalKills * .0024)) * state.slowFactor; }
+function sweepShot(sh, o, rad) {
+  const dx = sh.x - sh.px, dy = sh.y - sh.py, L2 = dx * dx + dy * dy || 1;
+  let u = ((o.x - sh.px) * dx + (o.y - sh.py) * dy) / L2; u = Math.max(0, Math.min(1, u));
+  return Math.hypot(o.x - (sh.px + dx * u), o.y - (sh.py + dy * u)) < rad + 3;
+}
+
+function tickShots(dt) {
+  const s = state;
+  const warping = s.phase === "warp";
+  s.shots.forEach(sh => {
+    sh.px = sh.x; sh.py = sh.y; sh.x += sh.vx * dt; sh.y += sh.vy * dt;
+    if (warping) {
+      hitWarpTrace(s, sh, (o, rad) => sweepShot(sh, o, rad), boom);
+      return;
+    }
+    const hit = s.bugs.find(b => sweepShot(sh, b, b.rad));
+    const phit = s.patches.find(p => sweepShot(sh, p, p.rad));
+    if (hit) {
+      hit.dead = true; s.waveKills++; s.totalKills++; s.combo++; s.streak++; bumpStreak(); sfx.hit();
+      s.score += BASE[hit.type] * mult(); boom(hit.x, hit.y, PAL.bug[hit.type], 12); sh.dead = true;
+    }
+    if (phit) { phit.dead = true; applyPatch(phit.type); boom(phit.x, phit.y, phit.type.col, 8); sh.dead = true; }
+  });
+  s.shots = s.shots.filter(sh => {
+    if (sh.dead) return false;
+    if (sh.x < -40 || sh.x > W + 40 || sh.y < -40 || sh.y > H + 40) {
+      if (!warping) resetChain();
+      return false;
+    }
+    return true;
+  });
+}
+
+const warpHooks = {
+  boom, resetChain, beginGameOver,
+  completeWarp() { completeWarp(state, genWorld, waveNeedFor); },
+};
 
 export function tick(dt, now) {
   const s = state;
@@ -107,21 +173,34 @@ export function tick(dt, now) {
   } else {
     s.cannonLat = 0;
   }
-  const CANNONP = P(s.cannonLat, 1);
+  const tCannon = (s.phase === "warp" && s.warp) ? s.warp.playerT : 1;
+  const CANNONP = P(s.cannonLat, tCannon);
   s.cannonScreen.x = CANNONP.x; s.cannonScreen.y = CANNONP.y + 6 + (s.cannonYOff || 0);
+
+  if (s.started && !s.gameOver && s.phase === "warp") {
+    tickWarp(s, dt, warpHooks);
+    tickShots(dt);
+    s.bugs = [];
+    s.parts.forEach(p => { p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; });
+    s.parts = s.parts.filter(p => p.life > 0);
+    pulses.forEach(p => { p.u = (p.u + dt * p.sp) % 1; });
+    s.flash = Math.max(0, s.flash - dt * 3); s.bombFx = Math.max(0, s.bombFx - dt * 1.5);
+    return;
+  }
 
   if (s.started && !s.gameOver) {
     s.spawnT -= dt; if (s.spawnT <= 0) {
-      s.spawnT = Math.max(.55, 2.2 - s.totalKills * .014);
+      s.spawnT = spawnInterval(s.totalKills);
       const lane = Math.floor(Math.random() * N);
+      const mix = mixCount(s.totalKills);
       s.bugs.push({
         lane, t: .02,
-        type: ["rootkit", "voltworm", "tanglebug", "hive"][Math.floor(Math.random() * (s.totalKills > 30 ? 4 : s.totalKills > 12 ? 3 : 1))],
+        type: MIX_TYPES[Math.floor(Math.random() * mix)],
         ph: Math.random() * 7, x: 0, y: 0,
       });
     }
     s.patchT -= dt; if (s.patchT <= 0) {
-      s.patchT = 11 + Math.random() * 7;
+      s.patchT = nextPatchDelay();
       s.patches.push({ lane: Math.floor(Math.random() * N), t: .02, ph: Math.random() * 7, x: 0, y: 0, type: pick(PATCH_POOL) });
     }
     s.slowT = Math.max(0, s.slowT - dt); if (s.slowT === 0) s.slowFactor = 1;
@@ -130,7 +209,7 @@ export function tick(dt, now) {
 
   if (s.started) {
     s.bugs.forEach(b => {
-      b.t += dt * rampSpeed() * (b.type === "hive" ? .75 : 1);
+      b.t += dt * rampSpeed(s.totalKills, s.slowFactor) * (b.type === "hive" ? .75 : 1);
       const lat = (b.lane - (N - 1) / 2) * LANE_SP + Math.sin(t * 3 + b.ph) * .04 * b.t;
       const p = P(lat, b.t); b.x = p.x; b.y = p.y; b.s = p.s; b.rad = 15 * p.s + 4;
       if (b.t >= 1) {
@@ -151,31 +230,16 @@ export function tick(dt, now) {
       if (p.t >= 1) { p.dead = true; boom(p.x, p.y, p.type.col, 4); }
     });
     s.patches = s.patches.filter(p => !p.dead);
-    s.shots.forEach(sh => {
-      sh.px = sh.x; sh.py = sh.y; sh.x += sh.vx * dt; sh.y += sh.vy * dt;
-      const sweep = (o, rad) => {
-        const dx = sh.x - sh.px, dy = sh.y - sh.py, L2 = dx * dx + dy * dy || 1;
-        let u = ((o.x - sh.px) * dx + (o.y - sh.py) * dy) / L2; u = Math.max(0, Math.min(1, u));
-        return Math.hypot(o.x - (sh.px + dx * u), o.y - (sh.py + dy * u)) < rad + 3;
-      };
-      const hit = s.bugs.find(b => sweep(b, b.rad));
-      const phit = s.patches.find(p => sweep(p, p.rad));
-      if (hit) {
-        hit.dead = true; s.waveKills++; s.totalKills++; s.combo++; s.streak++; bumpStreak(); sfx.hit();
-        s.score += BASE[hit.type] * mult(); boom(hit.x, hit.y, PAL.bug[hit.type], 12); sh.dead = true;
-      }
-      if (phit) { phit.dead = true; applyPatch(phit.type); boom(phit.x, phit.y, phit.type.col, 8); sh.dead = true; }
-    });
-    s.shots = s.shots.filter(sh => {
-      if (sh.dead) return false;
-      if (sh.x < -40 || sh.x > W + 40 || sh.y < -40 || sh.y > H + 40) { resetChain(); return false; }
-      return true;
-    });
+    tickShots(dt);
     s.bugs = s.bugs.filter(b => !b.dead);
     s.parts.forEach(p => { p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; });
     s.parts = s.parts.filter(p => p.life > 0);
     pulses.forEach(p => { p.u = (p.u + dt * p.sp) % 1; });
-    if (!s.gameOver && s.waveKills >= s.waveNeed) { s.waveKills = 0; s.level++; s.waveNeed = 8 + s.level; genWorld(); }
+    if (!s.gameOver && s.phase === "play" && s.waveKills >= s.waveNeed) enterWarp(s);
     s.flash = Math.max(0, s.flash - dt * 3); s.bombFx = Math.max(0, s.bombFx - dt * 1.5);
   }
 }
+
+export function startWarp() { enterWarp(state); }
+export function finishWarp() { completeWarp(state, genWorld, waveNeedFor); }
+export { DIFF };
