@@ -20,6 +20,11 @@ const ctx = cv.getContext("2d");
 const wrapEl = document.getElementById("wrap");
 const hudEl = document.getElementById("hud");
 const palsDiv = document.getElementById("pals");
+const subEl = document.querySelector(".sub");
+
+// chrome toggle: hide the descriptive line under the title while playing
+function startGame() { beginPlay(); subEl.style.display = "none"; }
+function toTitle() { returnToTitle(); subEl.style.display = ""; }
 
 PALETTES.forEach((p, i) => {
   const d = document.createElement("span"); d.className = "pal" + (i ? "" : " sel"); d.style.color = p.web;
@@ -39,8 +44,12 @@ cv.addEventListener("mousemove", e => {
   state.mouse.y = (e.clientY - r.top) * (H / r.height);
 });
 cv.addEventListener("mousedown", e => {
-  if (!state.started) { if (state.titleCool > 0) return; beginPlay(); return; }
-  if (state.gameOver) { if (state.overPhase === "table") returnToTitle(); return; }
+  if (!state.started) {
+    if (state.titleCool > 0) return;
+    if (state.titleView === "scores") { state.titleView = "start"; return; }
+    startGame(); return;
+  }
+  if (state.gameOver) { if (state.overPhase === "table") toTitle(); return; }
   if (e.button === 0) fireLaser();
   if (e.button === 2) dropBomb();
 });
@@ -50,7 +59,10 @@ addEventListener("keydown", e => {
   if (e.code === "KeyM") toggleMute();
   if (!state.started) {
     if (state.titleCool > 0) return;
-    if (e.code === "Enter" || e.code === "Space") { e.preventDefault(); beginPlay(); return; }
+    if (e.code === "KeyH") { e.preventDefault(); state.titleView = state.titleView === "scores" ? "start" : "scores"; return; }
+    if (e.code === "Escape" || e.code === "Backspace") { state.titleView = "start"; return; }
+    if (state.titleView === "scores") return; // scores view: click/Enter returns, keys above handle nav
+    if (e.code === "Enter" || e.code === "Space") { e.preventDefault(); startGame(); return; }
     if (e.code === "ArrowLeft" || e.code === "KeyA") { e.preventDefault(); adjustStartLevel(-1); }
     if (e.code === "ArrowRight" || e.code === "KeyD") { e.preventDefault(); adjustStartLevel(1); }
     return;
@@ -62,7 +74,7 @@ addEventListener("keydown", e => {
       saveScore(state.entryBuf, state.score, state.level); state.overPhase = "table";
     }
   } else if (state.gameOver && state.overPhase === "table" && (e.code === "Enter" || e.code === "Space")) {
-    e.preventDefault(); returnToTitle();
+    e.preventDefault(); toTitle();
   }
 });
 

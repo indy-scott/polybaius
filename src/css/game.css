@@ -14,4 +14,4 @@ h1 { font-size:17px; letter-spacing:3px; color:#7df9ff; text-shadow:0 0 8px #00e
 #cv { display:block; }
 #scan { position:absolute; inset:0; pointer-events:none;
   background:repeating-linear-gradient(0deg, rgba(0,0,0,.22) 0 1px, transparent 1px 3px); }
-.hint { font-size:10px; color:#567; margin-top:6px; flex:0 0 auto; }
+.hint { font-size:10px; color:#8fb3bf; margin-top:6px; flex:0 0 auto; }

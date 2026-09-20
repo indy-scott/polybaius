@@ -20,6 +20,7 @@ export const state = {
   spawnT: 2.4, patchT: 9,
   mouse: { x: CX, y: FLOOR - 164 },
   flash: 0, bombFx: 0, nextStreak: 15, cannonLat: 0,
+  titleView: "start", // title screen sub-view: "start" | "scores"
   slowT: 0, slowFactor: 1, rapidT: 0, shield: false,
   gameOver: false, started: false, titleCool: 0, cannonYOff: 0,
   cannonScreen: { x: CX, y: FLOOR + 10 },
@@ -93,6 +94,7 @@ export function beginPlay() {
 
 export function returnToTitle() {
   state.started = false;
+  state.titleView = "start"; // always land back on the start view
   resetGame();
   state.titleCool = .35; // swallow the dismiss click so a double-click does not auto-start
 }

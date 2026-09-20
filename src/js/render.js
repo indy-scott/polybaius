@@ -10,6 +10,7 @@ import { state, mult } from "./game.js";
 import { drawWarp } from "./warp.js";
 
 export function drawStartOverlay(ctx, t) {
+  if (state.titleView === "scores") { drawScoresScreen(ctx); return; }
   ctx.fillStyle = "rgba(0,4,10,.72)"; ctx.fillRect(0, 0, W, H);
   ctx.textAlign = "center";
   ctx.shadowColor = PAL.web; ctx.shadowBlur = 22;
@@ -31,6 +32,37 @@ export function drawStartOverlay(ctx, t) {
   ctx.font = "10px monospace"; ctx.fillStyle = PAL.web;
   ctx.fillText("A / D  OR  ARROWS  TO  SELECT  (1-8)", CX, H * .66);
   ctx.fillText("M MUTE  ·  LEFT LASER  ·  RIGHT BOMB", CX, H * .72);
+  ctx.font = "10px monospace"; ctx.fillStyle = PAL.text;
+  ctx.fillText("H — HIGH SCORES", CX, H * .78);
+  ctx.textAlign = "left";
+}
+
+// High-score screen, reachable from the title with H (Esc/H or click returns).
+function drawScoresScreen(ctx) {
+  ctx.fillStyle = "rgba(0,4,10,.8)"; ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = "center";
+  ctx.shadowColor = PAL.web; ctx.shadowBlur = 16;
+  ctx.fillStyle = PAL.text; ctx.font = "30px monospace";
+  ctx.fillText("HIGH SCORES", CX, H * .18);
+  ctx.shadowBlur = 0;
+  const hs = getScores();
+  if (!hs.length) {
+    ctx.font = "13px monospace"; ctx.fillStyle = PAL.web;
+    ctx.fillText("NO SCORES YET — BE THE FIRST", CX, H * .45);
+  } else {
+    ctx.font = "13px monospace"; ctx.fillStyle = PAL.text;
+    ctx.fillText("RANK  INITIALS   SCORE     LEVEL", CX, H * .26);
+    hs.forEach((r, i) => {
+      ctx.fillStyle = i === 0 ? PAL.pad : PAL.text;
+      ctx.fillText(
+        String(i + 1).padStart(2, " ") + "    " +
+        r.i.padEnd(3, ".") + "      " +
+        String(r.s).padStart(7, " ") + "    L" + String(r.l).padStart(2, " "),
+        CX, H * .32 + i * 26);
+    });
+  }
+  ctx.font = "11px monospace"; ctx.fillStyle = PAL.web;
+  ctx.fillText("H / ESC — BACK TO TITLE", CX, H * .88);
   ctx.textAlign = "left";
 }
 
